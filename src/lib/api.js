@@ -172,9 +172,11 @@ export async function adminFetchTours() {
 }
 
 export async function adminUpsertTour(tour) {
+  // Strip any joined relations (e.g. tour_stops from adminFetchTours select) before upserting
+  const { tour_stops, ...payload } = tour
   const { data, error } = await supabaseAdmin
     .from('tours')
-    .upsert({ ...tour, updated_at: new Date().toISOString() })
+    .upsert({ ...payload, updated_at: new Date().toISOString() })
     .select()
     .single()
   if (error) throw error

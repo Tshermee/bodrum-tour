@@ -37,7 +37,7 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
 
   return (
     <div
-      className="absolute inset-0 z-50 flex items-end justify-center"
+      className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
       onClick={step === 'preview' ? onClose : undefined}
     >

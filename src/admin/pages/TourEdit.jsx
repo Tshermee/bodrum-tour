@@ -3,6 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { adminFetchTours, adminUpsertTour } from '../../lib/api'
 import { Save, ArrowLeft, Loader2 } from 'lucide-react'
 
+const ALL_TAGS = [
+  { id: 'history', label: '🏛️ History' },
+  { id: 'food', label: '🍽️ Food' },
+  { id: 'photography', label: '📸 Photography' },
+  { id: 'nature', label: '🌿 Nature' },
+  { id: 'active', label: '🏃 Active' },
+  { id: 'culture', label: '🏺 Culture' },
+  { id: 'scenic', label: '🏔️ Scenic' },
+  { id: 'architecture', label: '🏗️ Architecture' },
+]
+
 const EMPTY = {
   id: '', name: '', subtitle: '', description: '',
   duration_min: '1', duration_max: '2', difficulty: 'Moderate',
@@ -28,7 +39,6 @@ export default function TourEdit() {
   const navigate = useNavigate()
   const isNew = !id
   const [form, setForm] = useState(EMPTY)
-  const [tagInput, setTagInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -45,17 +55,11 @@ export default function TourEdit() {
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
-  function addTag(e) {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      const tag = tagInput.trim().toLowerCase()
-      if (tag && !form.tags.includes(tag)) set('tags', [...form.tags, tag])
-      setTagInput('')
-    }
-  }
-
-  function removeTag(tag) {
-    set('tags', form.tags.filter(t => t !== tag))
+  function toggleTag(tagId) {
+    set('tags', form.tags.includes(tagId)
+      ? form.tags.filter(t => t !== tagId)
+      : [...form.tags, tagId]
+    )
   }
 
   async function handleSubmit(e) {
@@ -136,29 +140,38 @@ export default function TourEdit() {
             </select>
           </Field>
 
-          <Field label="Tags" hint="Press Enter or comma to add">
-            <div className="flex flex-wrap gap-2 mb-2">
-              {form.tags.map(tag => (
-                <span key={tag} className="flex items-center gap-1 bg-blue-900/40 text-blue-300 rounded-lg px-2 py-1 text-xs">
-                  {tag}
-                  <button type="button" onClick={() => removeTag(tag)} className="text-blue-400 hover:text-red-400">×</button>
-                </span>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Tags</label>
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_TAGS.map(tag => (
+                <label key={tag.id} className="flex items-center gap-2.5 cursor-pointer px-3 py-2.5 rounded-xl transition-colors"
+                  style={form.tags.includes(tag.id)
+                    ? { background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)' }
+                    : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <input type="checkbox" checked={form.tags.includes(tag.id)} onChange={() => toggleTag(tag.id)}
+                    className="w-4 h-4 rounded accent-blue-500 flex-shrink-0" />
+                  <span className="text-gray-300 text-sm">{tag.label}</span>
+                </label>
               ))}
             </div>
-            <input value={tagInput} onChange={e => setTagInput(e.target.value)} onKeyDown={addTag}
-              className={inputCls} placeholder="history, culture, food…" />
-          </Field>
+          </div>
 
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <label className="flex items-center gap-2.5 cursor-pointer px-3 py-2.5 rounded-xl transition-colors"
+              style={form.kid_friendly
+                ? { background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)' }
+                : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <input type="checkbox" checked={form.kid_friendly} onChange={e => set('kid_friendly', e.target.checked)}
-                className="w-4 h-4 rounded accent-blue-500" />
-              <span className="text-gray-300 text-sm">Kid-friendly</span>
+                className="w-4 h-4 rounded accent-yellow-400 flex-shrink-0" />
+              <span className="text-gray-300 text-sm">👶 Kid-friendly</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer ml-6">
+            <label className="flex items-center gap-2.5 cursor-pointer px-3 py-2.5 rounded-xl transition-colors"
+              style={form.published
+                ? { background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)' }
+                : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <input type="checkbox" checked={form.published} onChange={e => set('published', e.target.checked)}
-                className="w-4 h-4 rounded accent-blue-500" />
-              <span className="text-gray-300 text-sm">Published</span>
+                className="w-4 h-4 rounded accent-green-500 flex-shrink-0" />
+              <span className="text-gray-300 text-sm">🌐 Published</span>
             </label>
           </div>
         </div>

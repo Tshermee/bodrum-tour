@@ -20,6 +20,30 @@ const EMPTY = {
   points: 100,
 }
 
+function parseMapsInput(raw) {
+  const s = (raw || '').trim()
+  if (!s) return null
+  // @lat,lng in Google Maps URL path
+  const atMatch = s.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]), lng = parseFloat(atMatch[2])
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
+  }
+  // ?q=lat,lng or ?query=lat,lng
+  const qMatch = s.match(/[?&](?:q|query)=(-?\d+\.?\d*)[,+](-?\d+\.?\d*)/)
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]), lng = parseFloat(qMatch[2])
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
+  }
+  // Plain "lat, lng" or "lat,lng"
+  const coordMatch = s.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/)
+  if (coordMatch) {
+    const lat = parseFloat(coordMatch[1]), lng = parseFloat(coordMatch[2])
+    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
+  }
+  return null
+}
+
 const inputCls = "w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500"
 
 function Field({ label, children, hint }) {
@@ -37,6 +61,7 @@ export default function StopEdit() {
   const navigate = useNavigate()
   const isNew = !id || id === 'new'
   const [form, setForm] = useState({ ...EMPTY, tour_id: tourId })
+  const [locInput, setLocInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
@@ -50,10 +75,23 @@ export default function StopEdit() {
         if (stop) {
           setForm({ ...EMPTY, ...stop })
           if (stop.photo_url) setPreview(stop.photo_url)
+          if (stop.lat && stop.lng) setLocInput(`${stop.lat}, ${stop.lng}`)
         }
       })
     }
   }, [id, tourId])
+
+  function handleLocInput(raw) {
+    setLocInput(raw)
+    const parsed = parseMapsInput(raw)
+    if (parsed) {
+      set('lat', parsed.lat)
+      set('lng', parsed.lng)
+    } else if (!raw.trim()) {
+      set('lat', '')
+      set('lng', '')
+    }
+  }
 
   function set(field, value) { setForm(prev => ({ ...prev, [field]: value })) }
 
@@ -174,16 +212,26 @@ export default function StopEdit() {
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-4">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-gray-400" />
-            <h2 className="font-semibold text-white">GPS Coordinates</h2>
+            <h2 className="font-semibold text-white">Location</h2>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Latitude" hint="e.g. 37.0340">
-              <input value={form.lat || ''} onChange={e => set('lat', e.target.value)} className={inputCls} placeholder="37.0340" />
-            </Field>
-            <Field label="Longitude" hint="e.g. 27.4277">
-              <input value={form.lng || ''} onChange={e => set('lng', e.target.value)} className={inputCls} placeholder="27.4277" />
-            </Field>
-          </div>
+          <Field
+            label="Google Maps link or coordinates"
+            hint='Paste a Google Maps URL (e.g. https://maps.google.com/…) or type "37.0340, 27.4277"'
+          >
+            <input
+              value={locInput}
+              onChange={e => handleLocInput(e.target.value)}
+              className={inputCls}
+              placeholder="Paste Google Maps link or lat, lng"
+            />
+          </Field>
+          {form.lat && form.lng ? (
+            <p className="text-emerald-400 text-xs flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5" /> Parsed: {Number(form.lat).toFixed(5)}, {Number(form.lng).toFixed(5)}
+            </p>
+          ) : locInput.trim() ? (
+            <p className="text-amber-400 text-xs">Could not parse coordinates — try a different format.</p>
+          ) : null}
         </div>
 
         {/* Challenge */}

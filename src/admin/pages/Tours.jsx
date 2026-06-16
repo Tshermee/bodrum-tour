@@ -13,6 +13,8 @@ export default function Tours() {
   const [tours, setTours] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
+  const [toggling, setToggling] = useState(null)
+  const [toastError, setToastError] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -22,8 +24,16 @@ export default function Tours() {
   }
 
   async function togglePublished(tour) {
-    await adminUpsertTour({ ...tour, published: !tour.published })
-    setTours(prev => prev.map(t => t.id === tour.id ? { ...t, published: !t.published } : t))
+    setToggling(tour.id)
+    try {
+      await adminUpsertTour({ ...tour, published: !tour.published })
+      setTours(prev => prev.map(t => t.id === tour.id ? { ...t, published: !t.published } : t))
+    } catch (err) {
+      setToastError(err.message)
+      setTimeout(() => setToastError(''), 5000)
+    } finally {
+      setToggling(null)
+    }
   }
 
   async function handleDelete(id) {
@@ -41,6 +51,11 @@ export default function Tours() {
 
   return (
     <div className="space-y-6">
+      {toastError && (
+        <div className="bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">
+          {toastError}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Tours</h1>
@@ -84,9 +99,12 @@ export default function Tours() {
 
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button onClick={() => togglePublished(t)}
+                    disabled={toggling === t.id}
                     title={t.published ? 'Unpublish' : 'Publish'}
-                    className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
-                    {t.published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50">
+                    {toggling === t.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : t.published ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                   </button>
 
                   <Link to={`/tours/${t.id}/stops`}

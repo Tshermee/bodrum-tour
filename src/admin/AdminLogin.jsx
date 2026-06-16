@@ -13,7 +13,9 @@ export default function AdminLogin() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    // Accept plain usernames (no @) by mapping them to the internal email domain
+    const resolvedEmail = email.includes('@') ? email : `${email.toLowerCase()}@bodrum-admin.local`
+    const { error } = await supabase.auth.signInWithPassword({ email: resolvedEmail, password })
     if (error) setError(error.message)
     setLoading(false)
   }
@@ -31,13 +33,13 @@ export default function AdminLogin() {
 
         <form onSubmit={handleLogin} className="bg-gray-900 rounded-2xl p-8 space-y-5 border border-gray-800">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Username or Email</label>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="you@example.com"
+              placeholder="username or you@example.com"
               required
             />
           </div>

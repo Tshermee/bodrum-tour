@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Star, Lock, CheckCircle2, ChevronRight, RotateCcw,
-  Trophy, Zap, ArrowLeft, MapPin, Navigation2, Maximize2, X,
+  Trophy, Zap, ArrowLeft, MapPin, Navigation2, Maximize2, X, SkipForward,
 } from 'lucide-react'
 import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -15,6 +15,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
   const status = progress?.status ?? 'locked'
   const isLocked    = status === 'locked'
   const isCompleted = status === 'completed'
+  const isSkipped   = isCompleted && !!progress?.skipped
   const isUnlocked  = status === 'unlocked'
 
   const isNearby = gpsActive && distance != null && distance <= GPS_RADIUS
@@ -29,7 +30,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
         ${isLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}
         ${isUnlocked && !isNearby ? 'glow-cyan' : ''}
       `}
-      style={isUnlocked && isNearby ? {
+      style={isSkipped ? { opacity: 0.65 } : isUnlocked && isNearby ? {
         boxShadow: '0 0 20px rgba(34,197,94,0.4), 0 0 40px rgba(34,197,94,0.15)',
       } : undefined}
     >
@@ -64,7 +65,9 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
               : '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          {isCompleted
+          {isSkipped
+            ? <SkipForward className="w-5 h-5 text-amber-500/60" />
+            : isCompleted
             ? <CheckCircle2 className="w-5 h-5 text-green-400" />
             : isLocked
               ? <Lock className="w-4 h-4 text-white/30" />
@@ -99,7 +102,9 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
 
         {/* Right */}
         <div className="flex-shrink-0 flex items-center gap-2">
-          {isCompleted ? (
+          {isSkipped ? (
+            <span className="text-amber-500/60 text-xs font-medium">skipped</span>
+          ) : isCompleted ? (
             <div className="flex items-center gap-1">
               <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
               <span className="text-amber-400 text-sm font-bold">{progress.score}</span>

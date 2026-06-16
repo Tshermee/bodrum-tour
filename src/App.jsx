@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { ALL_TOURS, getTourById } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import WelcomeScreen from './components/screens/WelcomeScreen'
@@ -7,6 +7,8 @@ import MissionHubScreen from './components/screens/MissionHubScreen'
 import MissionScreen from './components/screens/MissionScreen'
 import CompletionScreen from './components/screens/CompletionScreen'
 import SuccessOverlay from './components/ui/SuccessOverlay'
+import { getDeviceId } from './lib/deviceId'
+import { createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops } from './lib/api'
 
 function buildDefaultMissions(tour) {
   return tour.missions.reduce((acc, m, idx) => {
@@ -15,12 +17,29 @@ function buildDefaultMissions(tour) {
   }, {})
 }
 
+// Cache: tourId → { progressId, stopMap: { orderIndex → stopUUID } }
+const supabaseCache = {}
+
+async function initSupabaseTour(tourId, purchaseId, teamName) {
+  try {
+    const [progress, stopsData] = await Promise.all([
+      upsertTourProgress({ purchaseId, tourId, teamName }),
+      fetchTourWithStops(tourId),
+    ])
+    const stopMap = {}
+    stopsData.tour_stops.forEach(s => { stopMap[s.order_index] = s.id })
+    supabaseCache[tourId] = { progressId: progress.id, stopMap }
+  } catch (e) {
+    console.warn('Supabase sync failed (offline?)', e)
+  }
+}
+
 export default function App() {
-  // Separate keys so name persists across tour resets
   const [teamName, setTeamName] = useLocalStorage('bodrum-name-v2', '')
   const [allProgress, setAllProgress] = useLocalStorage('bodrum-progress-v2', {})
   const [selectedTourId, setSelectedTourId] = useLocalStorage('bodrum-selected-tour-v2', null)
   const [purchases, setPurchases] = useLocalStorage('bodrum-purchases-v2', {})
+  const purchaseIdRef = useRef({}) // tourId → supabase purchase UUID
 
   const [screen, setScreen] = useState(() => {
     if (!teamName) return 'welcome'
@@ -44,7 +63,6 @@ export default function App() {
     const tour = getTourById(tourId)
     if (!tour) return
     setSelectedTourId(tourId)
-    // Initialise progress only if this tour hasn't been started before
     setAllProgress(prev => {
       if (prev[tourId]) return prev
       return {
@@ -58,7 +76,12 @@ export default function App() {
       }
     })
     setScreen('hub')
-  }, [setSelectedTourId, setAllProgress])
+    // Sync to Supabase in background
+    const pid = purchaseIdRef.current[tourId]
+    if (pid && teamName) {
+      initSupabaseTour(tourId, pid, teamName)
+    }
+  }, [setSelectedTourId, setAllProgress, teamName])
 
   const handleOpenMission = useCallback((missionId) => {
     setActiveMissionId(missionId)
@@ -83,15 +106,26 @@ export default function App() {
         newMissions[nextMission.id] = { ...newMissions[nextMission.id], status: 'unlocked' }
       }
       const allDone = activeTour.missions.every(m => newMissions[m.id]?.status === 'completed')
-      return {
-        ...prev,
-        [selectedTourId]: {
-          ...tourProg,
-          missions: newMissions,
-          totalScore: tourProg.totalScore + mission.points,
-          completedAt: allDone ? new Date().toISOString() : tourProg.completedAt,
-        },
+      const newTotal = tourProg.totalScore + mission.points
+      const newProg = {
+        ...tourProg,
+        missions: newMissions,
+        totalScore: newTotal,
+        completedAt: allDone ? new Date().toISOString() : tourProg.completedAt,
       }
+      // Supabase sync (fire-and-forget)
+      const cache = supabaseCache[selectedTourId]
+      if (cache) {
+        const stopId = cache.stopMap[missionId]
+        if (stopId) {
+          completeStop({ tourProgressId: cache.progressId, stopId, score: mission.points, attempts: 1 })
+            .catch(e => console.warn('stop sync', e))
+        }
+        if (allDone) {
+          completeTour(cache.progressId, newTotal).catch(e => console.warn('completion sync', e))
+        }
+      }
+      return { ...prev, [selectedTourId]: newProg }
     })
 
     setSuccessData({ mission, nextMission, score: mission.points })
@@ -118,7 +152,6 @@ export default function App() {
     setScreen('tourSelect')
   }, [setSelectedTourId])
 
-  // Resets progress for the active tour only (team name is preserved)
   const handleResetActiveTour = useCallback(() => {
     if (!selectedTourId || !activeTour) return
     setAllProgress(prev => ({
@@ -135,11 +168,24 @@ export default function App() {
     setScreen('tourSelect')
   }, [selectedTourId, activeTour, setAllProgress, setSelectedTourId])
 
-  const handlePurchase = useCallback((tourId) => {
+  const handlePurchase = useCallback(async (tourId) => {
+    // Optimistic local update
     setPurchases(prev => ({ ...prev, [tourId]: true }))
-  }, [setPurchases])
+    const tour = getTourById(tourId)
+    // Sync to Supabase in background
+    try {
+      const purchase = await createPurchase({
+        tourId,
+        teamName,
+        amount: tour?.price ?? 0,
+        deviceId: getDeviceId(),
+      })
+      purchaseIdRef.current[tourId] = purchase.id
+    } catch (e) {
+      console.warn('purchase sync', e)
+    }
+  }, [setPurchases, teamName])
 
-  // Full reset — clears everything
   const handleFullReset = useCallback(() => {
     setTeamName('')
     setAllProgress({})

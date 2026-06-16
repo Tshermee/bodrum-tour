@@ -1,0 +1,199 @@
+import { supabase, supabaseAdmin } from './supabase'
+
+// ─── Tours ────────────────────────────────────────────────────────────────────
+
+export async function fetchTours() {
+  const { data, error } = await supabase
+    .from('tours')
+    .select('*, tour_stops(count)')
+    .eq('published', true)
+    .order('created_at')
+  if (error) throw error
+  return data
+}
+
+export async function fetchTourWithStops(tourId) {
+  const { data, error } = await supabase
+    .from('tours')
+    .select('*, tour_stops(*)')
+    .eq('id', tourId)
+    .single()
+  if (error) throw error
+  data.tour_stops.sort((a, b) => a.order_index - b.order_index)
+  return data
+}
+
+// ─── Purchases ────────────────────────────────────────────────────────────────
+
+export async function createPurchase({ tourId, teamName, email, amount, deviceId }) {
+  const { data, error } = await supabase
+    .from('purchases')
+    .insert({
+      tour_id: tourId,
+      team_name: teamName,
+      email: email || null,
+      amount,
+      device_id: deviceId,
+      status: 'completed',
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function checkPurchase(tourId, deviceId) {
+  const { data, error } = await supabase
+    .from('purchases')
+    .select('id')
+    .eq('tour_id', tourId)
+    .eq('device_id', deviceId)
+    .eq('status', 'completed')
+    .maybeSingle()
+  if (error) throw error
+  return !!data
+}
+
+// ─── Progress ─────────────────────────────────────────────────────────────────
+
+export async function upsertTourProgress({ purchaseId, tourId, teamName }) {
+  const { data, error } = await supabase
+    .from('tour_progress')
+    .upsert({ purchase_id: purchaseId, tour_id: tourId, team_name: teamName }, {
+      onConflict: 'purchase_id',
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function completeStop({ tourProgressId, stopId, score, photoUrl, attempts }) {
+  const { error } = await supabase
+    .from('stop_progress')
+    .upsert({
+      tour_progress_id: tourProgressId,
+      stop_id: stopId,
+      completed_at: new Date().toISOString(),
+      score,
+      photo_url: photoUrl || null,
+      attempts,
+    }, { onConflict: 'tour_progress_id,stop_id' })
+  if (error) throw error
+}
+
+export async function completeTour(tourProgressId, totalScore) {
+  const { error } = await supabase
+    .from('tour_progress')
+    .update({ completed_at: new Date().toISOString(), total_score: totalScore })
+    .eq('id', tourProgressId)
+  if (error) throw error
+}
+
+// ─── Admin: Tours ─────────────────────────────────────────────────────────────
+
+export async function adminFetchTours() {
+  const { data, error } = await supabaseAdmin
+    .from('tours')
+    .select('*, tour_stops(count)')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function adminUpsertTour(tour) {
+  const { data, error } = await supabaseAdmin
+    .from('tours')
+    .upsert({ ...tour, updated_at: new Date().toISOString() })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function adminDeleteTour(id) {
+  const { error } = await supabaseAdmin.from('tours').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ─── Admin: Stops ─────────────────────────────────────────────────────────────
+
+export async function adminFetchStops(tourId) {
+  const { data, error } = await supabaseAdmin
+    .from('tour_stops')
+    .select('*')
+    .eq('tour_id', tourId)
+    .order('order_index')
+  if (error) throw error
+  return data
+}
+
+export async function adminUpsertStop(stop) {
+  const { data, error } = await supabaseAdmin
+    .from('tour_stops')
+    .upsert({ ...stop, updated_at: new Date().toISOString() })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function adminDeleteStop(id) {
+  const { error } = await supabaseAdmin.from('tour_stops').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ─── Admin: Purchases ─────────────────────────────────────────────────────────
+
+export async function adminFetchPurchases({ page = 0, pageSize = 50, tourId } = {}) {
+  let query = supabaseAdmin
+    .from('purchases')
+    .select('*, tours(name)', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(page * pageSize, (page + 1) * pageSize - 1)
+  if (tourId) query = query.eq('tour_id', tourId)
+  const { data, error, count } = await query
+  if (error) throw error
+  return { data, count }
+}
+
+// ─── Admin: Analytics ─────────────────────────────────────────────────────────
+
+export async function adminFetchTourStats() {
+  const { data, error } = await supabaseAdmin.from('tour_stats').select('*')
+  if (error) throw error
+  return data
+}
+
+export async function adminFetchStopDropoff(tourId) {
+  const { data, error } = await supabaseAdmin
+    .from('stop_dropoff_stats')
+    .select('*')
+    .eq('tour_id', tourId)
+  if (error) throw error
+  return data
+}
+
+// ─── Storage: Photo Upload ────────────────────────────────────────────────────
+
+export async function uploadStopPhoto(file, stopId) {
+  const ext = file.name.split('.').pop()
+  const path = `stops/${stopId}.${ext}`
+  const { error } = await supabaseAdmin.storage
+    .from('tour-media')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabaseAdmin.storage.from('tour-media').getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function uploadUserPhoto(file, progressId, stopId) {
+  const ext = file.name.split('.').pop()
+  const path = `user-submissions/${progressId}/${stopId}.${ext}`
+  const { error } = await supabase.storage
+    .from('tour-media')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabase.storage.from('tour-media').getPublicUrl(path)
+  return data.publicUrl
+}

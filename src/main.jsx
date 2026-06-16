@@ -1,11 +1,22 @@
 import 'leaflet/dist/leaflet.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import App from './App.jsx'
 import './index.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+const isAdmin = window.location.pathname.includes('/admin')
+
+async function boot() {
+  if (isAdmin) {
+    const { default: AdminApp } = await import('./admin/AdminApp.jsx')
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <React.StrictMode><AdminApp /></React.StrictMode>
+    )
+  } else {
+    const { default: App } = await import('./App.jsx')
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      <React.StrictMode><App /></React.StrictMode>
+    )
+  }
+}
+
+boot()

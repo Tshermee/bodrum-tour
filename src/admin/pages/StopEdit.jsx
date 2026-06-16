@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { adminFetchStops, adminUpsertStop, uploadStopPhoto } from '../../lib/api'
-import { Save, ArrowLeft, Loader2, Upload, X, MapPin } from 'lucide-react'
+import { Save, ArrowLeft, Loader2, Upload, X, MapPin, ExternalLink } from 'lucide-react'
 
 const EMPTY = {
   id: undefined,
@@ -105,7 +105,8 @@ export default function StopEdit() {
     if (parsed) {
       set('lat', parsed.lat)
       set('lng', parsed.lng)
-    } else if (!raw.trim()) {
+    } else {
+      // Always clear stale coords — never leave old values when input changes
       set('lat', '')
       set('lng', '')
     }
@@ -233,22 +234,55 @@ export default function StopEdit() {
             <h2 className="font-semibold text-white">Location</h2>
           </div>
           <Field
-            label="Google Maps link or coordinates"
-            hint={`DMS: 37°04'11.9"N 27°14'49.8"E  ·  Decimal: 37.0700, 27.2472  ·  Google Maps share link`}
+            label="Coordinates or Google Maps link"
+            hint={`DMS: 37°04'11.9"N 27°14'49.8"E  ·  Decimal: 37.0700, 27.2472  ·  Full Google Maps share URL`}
           >
             <input
               value={locInput}
               onChange={e => handleLocInput(e.target.value)}
               className={inputCls}
-              placeholder={`37°04'11.9"N 27°14'49.8"E  or  paste Google Maps link`}
+              placeholder={`37°04'11.9"N 27°14'49.8"E  or  paste full Google Maps URL`}
             />
           </Field>
+
+          {/* ── Status feedback ── */}
           {form.lat && form.lng ? (
-            <p className="text-emerald-400 text-xs flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5" /> Parsed: {Number(form.lat).toFixed(5)}, {Number(form.lng).toFixed(5)}
-            </p>
+            <div className="space-y-1.5">
+              <p className="text-emerald-400 text-xs flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5" />
+                {Number(form.lat).toFixed(7)}, {Number(form.lng).toFixed(7)}
+              </p>
+              <a
+                href={`https://maps.google.com/?q=${form.lat},${form.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+              >
+                <ExternalLink className="w-3 h-3" /> Verify on Google Maps
+              </a>
+            </div>
+          ) : /goo\.gl|maps\.app/i.test(locInput.trim()) ? (
+            <div className="rounded-xl p-3.5 space-y-2"
+              style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)' }}>
+              <p className="text-amber-300 text-xs font-semibold">
+                Shortened link — coordinates can't be read directly.
+              </p>
+              <p className="text-amber-400/70 text-xs leading-relaxed">
+                Open the link below, let Google Maps load fully, then copy the full URL from your browser's address bar and paste it back here.
+              </p>
+              <a
+                href={locInput.trim()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 font-medium"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open link in new tab →
+              </a>
+            </div>
           ) : locInput.trim() ? (
-            <p className="text-amber-400 text-xs">Could not parse coordinates — try a different format.</p>
+            <p className="text-amber-400 text-xs">
+              Could not parse — try DMS format, decimal coords, or a full Google Maps URL.
+            </p>
           ) : null}
         </div>
 

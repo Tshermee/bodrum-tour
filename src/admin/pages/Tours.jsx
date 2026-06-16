@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { adminFetchTours, adminDeleteTour, adminUpsertTour } from '../../lib/api'
-import { Plus, Edit2, Trash2, MapPin, Eye, EyeOff, Loader2, ChevronRight } from 'lucide-react'
+import { Plus, Edit2, Trash2, MapPin, Eye, EyeOff, Loader2, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 
 const DIFF_COLOR = {
   Easy: 'bg-emerald-900/50 text-emerald-400',
@@ -14,6 +14,7 @@ export default function Tours() {
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
   const [toggling, setToggling] = useState(null)
+  const [moving, setMoving] = useState(null)
   const [toastError, setToastError] = useState('')
 
   useEffect(() => { load() }, [])
@@ -41,6 +42,35 @@ export default function Tours() {
     setDeleting(id)
     try { await adminDeleteTour(id); setTours(prev => prev.filter(t => t.id !== id)) }
     finally { setDeleting(null) }
+  }
+
+  async function handleMove(tourId, direction) {
+    const idx = tours.findIndex(t => t.id === tourId)
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= tours.length) return
+
+    // Swap positions in array
+    const reordered = [...tours]
+    ;[reordered[idx], reordered[targetIdx]] = [reordered[targetIdx], reordered[idx]]
+
+    // Assign clean sequential sort_orders (10, 20, 30…)
+    const updated = reordered.map((t, i) => ({ ...t, sort_order: (i + 1) * 10 }))
+
+    // Track which two actually changed
+    const prevOrders = new Map(tours.map(t => [t.id, t.sort_order]))
+    const changed = updated.filter(t => t.sort_order !== prevOrders.get(t.id))
+
+    setMoving(tourId)
+    setTours(updated)
+    try {
+      await Promise.all(changed.map(t => adminUpsertTour(t)))
+    } catch (err) {
+      setTours(tours) // revert
+      setToastError(err.message)
+      setTimeout(() => setToastError(''), 5000)
+    } finally {
+      setMoving(null)
+    }
   }
 
   if (loading) return (
@@ -75,8 +105,33 @@ export default function Tours() {
           </div>
         ) : (
           <div className="divide-y divide-gray-800">
-            {tours.map(t => (
-              <div key={t.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-800/50 transition-colors">
+            {tours.map((t, idx) => (
+              <div key={t.id} className="flex items-center gap-3 px-4 py-4 hover:bg-gray-800/50 transition-colors">
+                {/* Sort handle: up/down arrows */}
+                <div className="flex flex-col gap-0.5 flex-shrink-0">
+                  <button
+                    onClick={() => handleMove(t.id, 'up')}
+                    disabled={idx === 0 || moving != null}
+                    title="Move up"
+                    className="p-1 rounded text-gray-600 hover:text-gray-300 hover:bg-gray-700 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleMove(t.id, 'down')}
+                    disabled={idx === tours.length - 1 || moving != null}
+                    title="Move down"
+                    className="p-1 rounded text-gray-600 hover:text-gray-300 hover:bg-gray-700 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Order number */}
+                <span className="text-gray-600 text-xs font-mono w-5 text-center flex-shrink-0">
+                  {idx + 1}
+                </span>
+
                 {/* Color swatch */}
                 <div className="w-10 h-10 rounded-xl flex-shrink-0 border border-white/10"
                   style={{ background: `linear-gradient(135deg, ${t.gradient_from}, ${t.gradient_to})` }} />
@@ -86,6 +141,9 @@ export default function Tours() {
                     <span className="text-white font-semibold truncate">{t.name}</span>
                     {!t.published && (
                       <span className="flex-shrink-0 text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full">Draft</span>
+                    )}
+                    {moving === t.id && (
+                      <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin flex-shrink-0" />
                     )}
                   </div>
                   <div className="flex items-center gap-3 mt-0.5">

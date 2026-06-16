@@ -65,7 +65,7 @@ export async function fetchAllToursForApp() {
     .from('tours')
     .select('*, tour_stops(*)')
     .eq('published', true)
-    .order('created_at')
+    .order('sort_order', { ascending: true })
   if (error) throw error
   return data.map(transformTour)
 }
@@ -166,7 +166,7 @@ export async function adminFetchTours() {
   const { data, error } = await supabaseAdmin
     .from('tours')
     .select('*, tour_stops(count)')
-    .order('created_at', { ascending: false })
+    .order('sort_order', { ascending: true })
   if (error) throw error
   return data
 }
@@ -242,6 +242,26 @@ export async function adminFetchStopDropoff(tourId) {
     .from('stop_dropoff_stats')
     .select('*')
     .eq('tour_id', tourId)
+  if (error) throw error
+  return data
+}
+
+// ─── Skip Reports ─────────────────────────────────────────────────────────────
+
+export async function reportSkip({ tourId, stopOrder, stopName, teamName, reason, note }) {
+  const { error } = await supabase
+    .from('skip_reports')
+    .insert({ tour_id: tourId, stop_order: stopOrder, stop_name: stopName, team_name: teamName, reason, note: note || null })
+  if (error) throw error
+}
+
+// ─── Admin: Skip Reports ──────────────────────────────────────────────────────
+
+export async function adminFetchSkipReports() {
+  const { data, error } = await supabaseAdmin
+    .from('skip_reports')
+    .select('*')
+    .order('created_at', { ascending: false })
   if (error) throw error
   return data
 }

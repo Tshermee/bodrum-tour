@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { ALL_TOURS, getTourById } from './data/toursData'
+import { ALL_TOURS } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
+import { fetchAllToursForApp, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops } from './lib/api'
 import WelcomeScreen from './components/screens/WelcomeScreen'
 import TourSelectScreen from './components/screens/TourSelectScreen'
 import MissionHubScreen from './components/screens/MissionHubScreen'
@@ -8,7 +9,6 @@ import MissionScreen from './components/screens/MissionScreen'
 import CompletionScreen from './components/screens/CompletionScreen'
 import SuccessOverlay from './components/ui/SuccessOverlay'
 import { getDeviceId } from './lib/deviceId'
-import { createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops } from './lib/api'
 
 function buildDefaultMissions(tour) {
   return tour.missions.reduce((acc, m, idx) => {
@@ -41,6 +41,13 @@ export default function App() {
   const [purchases, setPurchases] = useLocalStorage('bodrum-purchases-v2', {})
   const purchaseIdRef = useRef({}) // tourId → supabase purchase UUID
 
+  const [tours, setTours] = useState(ALL_TOURS)
+  useEffect(() => {
+    fetchAllToursForApp()
+      .then(loaded => { if (loaded.length > 0) setTours(loaded) })
+      .catch(() => {}) // silently fall back to ALL_TOURS
+  }, [])
+
   const [screen, setScreen] = useState(() => {
     if (!teamName) return 'welcome'
     if (!selectedTourId) return 'tourSelect'
@@ -49,7 +56,7 @@ export default function App() {
   const [activeMissionId, setActiveMissionId] = useState(null)
   const [successData, setSuccessData] = useState(null)
 
-  const activeTour = selectedTourId ? getTourById(selectedTourId) : null
+  const activeTour = selectedTourId ? (tours.find(t => t.id === selectedTourId) ?? null) : null
   const activeTourProgress = selectedTourId ? allProgress[selectedTourId] ?? null : null
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -60,7 +67,7 @@ export default function App() {
   }, [setTeamName])
 
   const handleSelectTour = useCallback((tourId) => {
-    const tour = getTourById(tourId)
+    const tour = tours.find(t => t.id === tourId)
     if (!tour) return
     setSelectedTourId(tourId)
     setAllProgress(prev => {
@@ -81,7 +88,7 @@ export default function App() {
     if (pid && teamName) {
       initSupabaseTour(tourId, pid, teamName)
     }
-  }, [setSelectedTourId, setAllProgress, teamName])
+  }, [tours, setSelectedTourId, setAllProgress, teamName])
 
   const handleOpenMission = useCallback((missionId) => {
     setActiveMissionId(missionId)
@@ -171,7 +178,7 @@ export default function App() {
   const handlePurchase = useCallback(async (tourId) => {
     // Optimistic local update
     setPurchases(prev => ({ ...prev, [tourId]: true }))
-    const tour = getTourById(tourId)
+    const tour = tours.find(t => t.id === tourId)
     // Sync to Supabase in background
     try {
       const purchase = await createPurchase({
@@ -184,7 +191,7 @@ export default function App() {
     } catch (e) {
       console.warn('purchase sync', e)
     }
-  }, [setPurchases, teamName])
+  }, [tours, setPurchases, teamName])
 
   const handleFullReset = useCallback(() => {
     setTeamName('')
@@ -213,7 +220,7 @@ export default function App() {
         {screen === 'tourSelect' && (
           <TourSelectScreen
             teamName={teamName}
-            tours={ALL_TOURS}
+            tours={tours}
             allProgress={allProgress}
             purchases={purchases}
             onSelectTour={handleSelectTour}

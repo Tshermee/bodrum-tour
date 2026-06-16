@@ -1,5 +1,75 @@
 import { supabase, supabaseAdmin } from './supabase'
 
+// ─── Supabase → component format transformer ──────────────────────────────────
+
+function emojiForTags(tags = []) {
+  if (tags.includes('food')) return '🍽️'
+  if (tags.includes('photography')) return '📸'
+  if (tags.includes('nature') || tags.includes('active')) return '🌊'
+  if (tags.includes('history') || tags.includes('architecture')) return '🏛️'
+  if (tags.includes('culture')) return '🎭'
+  return '🗺️'
+}
+
+const STOP_EMOJI = { photo: '📸', riddle: '🔍', code: '🔢' }
+
+function transformStop(stop, tour) {
+  const challenge = {
+    type: stop.challenge_type || 'photo',
+    instruction: stop.challenge_prompt || '',
+    hint: stop.challenge_hint || '',
+  }
+  if (stop.challenge_type === 'riddle') challenge.answer = stop.challenge_answer || ''
+  if (stop.challenge_type === 'code') challenge.code = stop.challenge_answer || ''
+
+  return {
+    id: stop.order_index,
+    title: stop.name,
+    location: stop.location_name || stop.name,
+    emoji: STOP_EMOJI[stop.challenge_type] || '📍',
+    gradient: [tour.gradient_from || '#1e3a8a', tour.gradient_to || '#0e7490'],
+    accentColor: tour.accent_color || '#38bdf8',
+    mapsQuery: stop.location_name ? `${stop.location_name}, Bodrum, Turkey` : 'Bodrum, Turkey',
+    coordinates: stop.lat && stop.lng ? { lat: Number(stop.lat), lng: Number(stop.lng) } : null,
+    story: stop.story || '',
+    points: stop.points || 100,
+    challenge,
+  }
+}
+
+export function transformTour(raw) {
+  const stops = (raw.tour_stops || []).sort((a, b) => a.order_index - b.order_index)
+  return {
+    id: raw.id,
+    title: raw.name,
+    tagline: raw.subtitle || raw.description || '',
+    coverEmoji: emojiForTags(raw.tags),
+    gradient: [raw.gradient_from || '#1e3a8a', raw.gradient_to || '#0e7490'],
+    accentColor: raw.accent_color || '#38bdf8',
+    durationMin: Math.round(parseFloat(raw.duration_min || 1) * 60),
+    durationLabel: raw.duration_min && raw.duration_max
+      ? `${raw.duration_min} – ${raw.duration_max} hrs`
+      : `${raw.duration_min || 1} hrs`,
+    stops: stops.length,
+    totalPossibleScore: stops.reduce((sum, s) => sum + (s.points || 0), 0),
+    difficulty: (raw.difficulty || 'moderate').toLowerCase(),
+    tags: raw.tags || [],
+    price: Number(raw.price || 0),
+    kidFriendly: raw.kid_friendly || false,
+    missions: stops.map(s => transformStop(s, raw)),
+  }
+}
+
+export async function fetchAllToursForApp() {
+  const { data, error } = await supabase
+    .from('tours')
+    .select('*, tour_stops(*)')
+    .eq('published', true)
+    .order('created_at')
+  if (error) throw error
+  return data.map(transformTour)
+}
+
 // ─── Tours ────────────────────────────────────────────────────────────────────
 
 export async function fetchTours() {

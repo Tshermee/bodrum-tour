@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 
@@ -23,26 +23,35 @@ function makeIcon(label, bgColor, size = 28) {
   })
 }
 
-// Child component — must be inside MapContainer to call useMap()
-function MapController({ positions, interactive }) {
+function makeUserIcon() {
+  return L.divIcon({
+    html: `<div class="gps-dot-outer"><div class="gps-dot-inner"></div></div>`,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  })
+}
+
+// Fits bounds once on mount, then just keeps tiles invalidated
+function MapController({ positions }) {
   const map = useMap()
+  const fitted = useRef(false)
+
   useEffect(() => {
-    const fit = () => {
-      if (positions.length === 0) return
-      if (positions.length === 1) {
-        map.setView(positions[0], 15)
-      } else {
-        try {
-          map.fitBounds(L.latLngBounds(positions), { padding: [24, 24], maxZoom: 15 })
-        } catch (_) {
-          map.setView(positions[0], 14)
-        }
+    map.invalidateSize()
+    if (fitted.current || positions.length === 0) return
+    fitted.current = true
+    if (positions.length === 1) {
+      map.setView(positions[0], 15)
+    } else {
+      try {
+        map.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15 })
+      } catch (_) {
+        map.setView(positions[0], 14)
       }
     }
-    // Invalidate first so tiles render in dynamic containers (scrollable cards)
-    const t = setTimeout(() => { map.invalidateSize(); fit() }, 80)
-    return () => clearTimeout(t)
-  }, [map, positions, interactive])
+  })
+
   return null
 }
 
@@ -55,7 +64,9 @@ function MapController({ positions, interactive }) {
  *   height          — CSS height in px (default 180)
  *   interactive     — allow drag/zoom (default false)
  *   accentColor     — hex color for route line + unlocked markers
- *   singleMode      — show single emoji pin instead of numbered markers (for mission detail)
+ *   singleMode      — show single emoji pin instead of numbered markers
+ *   userPosition    — { lat, lng } | null — live GPS dot
+ *   routeTo         — { lat, lng } | null — draw line from userPosition to this coord
  */
 export default function MapView({
   missions,
@@ -64,6 +75,8 @@ export default function MapView({
   interactive = false,
   accentColor = '#38bdf8',
   singleMode = false,
+  userPosition = null,
+  routeTo = null,
 }) {
   const valid = missions.filter(m => m.coordinates?.lat && m.coordinates?.lng)
   if (valid.length === 0) return null
@@ -85,20 +98,34 @@ export default function MapView({
         attributionControl={false}
       >
         <TileLayer url={TILE_URL} />
-        <MapController positions={positions} interactive={interactive} />
+        <MapController positions={positions} />
 
-        {/* Route line */}
+        {/* Stop-to-stop route line */}
         {valid.length > 1 && (
           <Polyline
             positions={positions}
             color={accentColor}
             weight={2.5}
             dashArray="7 5"
-            opacity={0.85}
+            opacity={0.6}
           />
         )}
 
-        {/* Markers */}
+        {/* Route from user to next stop */}
+        {userPosition && routeTo && (
+          <Polyline
+            positions={[
+              [userPosition.lat, userPosition.lng],
+              [routeTo.lat, routeTo.lng],
+            ]}
+            color="#3b82f6"
+            weight={3}
+            dashArray="10 6"
+            opacity={0.9}
+          />
+        )}
+
+        {/* Stop markers */}
         {valid.map((mission, idx) => {
           const status = missionProgress
             ? (missionProgress[mission.id]?.status ?? 'locked')
@@ -126,6 +153,14 @@ export default function MapView({
             />
           )
         })}
+
+        {/* Live GPS dot */}
+        {userPosition && (
+          <Marker
+            position={[userPosition.lat, userPosition.lng]}
+            icon={makeUserIcon()}
+          />
+        )}
       </MapContainer>
     </div>
   )

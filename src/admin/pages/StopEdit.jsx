@@ -23,24 +23,42 @@ const EMPTY = {
 function parseMapsInput(raw) {
   const s = (raw || '').trim()
   if (!s) return null
-  // @lat,lng in Google Maps URL path
-  const atMatch = s.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
-  if (atMatch) {
-    const lat = parseFloat(atMatch[1]), lng = parseFloat(atMatch[2])
-    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
+
+  function valid(lat, lng) {
+    return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null
   }
-  // ?q=lat,lng or ?query=lat,lng
-  const qMatch = s.match(/[?&](?:q|query)=(-?\d+\.?\d*)[,+](-?\d+\.?\d*)/)
-  if (qMatch) {
-    const lat = parseFloat(qMatch[1]), lng = parseFloat(qMatch[2])
-    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
+
+  // 1. DMS: 37°04'11.9"N 27°14'49.8"E
+  //    Handles °/º degrees, '/' ′ minutes, "/"/″ seconds, any NSEW order
+  const dmsRx = /(\d+)\s*[°º]\s*(\d+)\s*[''′]\s*([\d.]+)\s*["""″"]\s*([NSEWnsew])/g
+  const dmsM = [...s.matchAll(dmsRx)]
+  if (dmsM.length >= 2) {
+    const toDecimal = (d, m, sec, dir) => {
+      const v = parseInt(d) + parseInt(m) / 60 + parseFloat(sec) / 3600
+      return 'SW'.includes(dir.toUpperCase()) ? -v : v
+    }
+    const a = { v: toDecimal(dmsM[0][1], dmsM[0][2], dmsM[0][3], dmsM[0][4]), d: dmsM[0][4].toUpperCase() }
+    const b = { v: toDecimal(dmsM[1][1], dmsM[1][2], dmsM[1][3], dmsM[1][4]), d: dmsM[1][4].toUpperCase() }
+    if ('NS'.includes(a.d) && 'EW'.includes(b.d)) return valid(a.v, b.v)
+    if ('EW'.includes(a.d) && 'NS'.includes(b.d)) return valid(b.v, a.v)
   }
-  // Plain "lat, lng" or "lat,lng"
-  const coordMatch = s.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/)
-  if (coordMatch) {
-    const lat = parseFloat(coordMatch[1]), lng = parseFloat(coordMatch[2])
-    if (Math.abs(lat) <= 90 && Math.abs(lng) <= 180) return { lat, lng }
-  }
+
+  // 2. Google Maps URL: @lat,lng (standard share link)
+  const atM = s.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/)
+  if (atM) { const r = valid(parseFloat(atM[1]), parseFloat(atM[2])); if (r) return r }
+
+  // 3. Google Maps embed/data: !3dlat!4dlng
+  const tdM = s.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/)
+  if (tdM) { const r = valid(parseFloat(tdM[1]), parseFloat(tdM[2])); if (r) return r }
+
+  // 4. ?q=lat,lng or &q=lat,lng or ?query=lat,lng
+  const qM = s.match(/[?&](?:q|query)=(-?\d+\.?\d*)[,+%20]+(-?\d+\.?\d*)/)
+  if (qM) { const r = valid(parseFloat(qM[1]), parseFloat(qM[2])); if (r) return r }
+
+  // 5. Plain decimal: "37.0700, 27.2472" or "37.0700,27.2472"
+  const decM = s.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/)
+  if (decM) { const r = valid(parseFloat(decM[1]), parseFloat(decM[2])); if (r) return r }
+
   return null
 }
 
@@ -216,13 +234,13 @@ export default function StopEdit() {
           </div>
           <Field
             label="Google Maps link or coordinates"
-            hint='Paste a Google Maps URL (e.g. https://maps.google.com/…) or type "37.0340, 27.4277"'
+            hint={`DMS: 37°04'11.9"N 27°14'49.8"E  ·  Decimal: 37.0700, 27.2472  ·  Google Maps share link`}
           >
             <input
               value={locInput}
               onChange={e => handleLocInput(e.target.value)}
               className={inputCls}
-              placeholder="Paste Google Maps link or lat, lng"
+              placeholder={`37°04'11.9"N 27°14'49.8"E  or  paste Google Maps link`}
             />
           </Field>
           {form.lat && form.lng ? (

@@ -1,10 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Star, Lock, CheckCircle2, ChevronRight, RotateCcw,
-  Trophy, Zap, ArrowLeft, MapPin, Navigation2,
+  Trophy, Zap, ArrowLeft, MapPin, Navigation2, Maximize2, X,
 } from 'lucide-react'
 import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
+import { useRoute } from '../../hooks/useRoute'
 import { getDistanceMeters, formatDistance } from '../../lib/geo'
 
 const GPS_RADIUS = 50 // metres
@@ -119,6 +121,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
 
 export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenMission, onBackToSelect, onResetTour }) {
   const [showReset, setShowReset] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [toast, setToast] = useState(null)
   const prevNearby = useRef(new Set())
 
@@ -182,8 +185,13 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     onOpenMission(missionId)
   }
 
-  // Route line: from user → next unlocked stop
+  // OSRM walking route: user → next unlocked stop
   const routeTo = (gpsActive && nextMission?.coordinates) ? nextMission.coordinates : null
+  const { routePoints: osrmRoute } = useRoute(userPos, routeTo)
+  // While OSRM loads, show a straight dashed line as fallback
+  const routePoints = osrmRoute
+    ?? (userPos && routeTo ? [[userPos.lat, userPos.lng], [routeTo.lat, routeTo.lng]] : null)
+
   const nextDist = nextMission ? distances[nextMission.id] : null
 
   return (
@@ -289,15 +297,25 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           className="rounded-2xl overflow-hidden"
           style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          <MapView
-            missions={missions}
-            missionProgress={tourProgress.missions}
-            height={190}
-            interactive={true}
-            accentColor={tour.accentColor}
-            userPosition={userPos}
-            routeTo={routeTo}
-          />
+          {/* Map + expand button */}
+          <div className="relative">
+            <MapView
+              missions={missions}
+              missionProgress={tourProgress.missions}
+              height={190}
+              interactive={true}
+              accentColor={tour.accentColor}
+              userPosition={userPos}
+              routePoints={routePoints}
+            />
+            <button
+              onClick={() => setFullscreen(true)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.55)', zIndex: 400 }}
+            >
+              <Maximize2 className="w-4 h-4 text-white" />
+            </button>
+          </div>
           {/* GPS status bar */}
           <div
             className="flex items-center gap-2 px-3 py-2"
@@ -363,6 +381,65 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           </p>
         </div>
       </div>
+
+      {/* ── Fullscreen map portal ───────────────────────────── */}
+      {fullscreen && createPortal(
+        <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, background: '#050e1a' }}>
+          {/* Full-height map */}
+          <div className="relative flex-1" style={{ minHeight: 0 }}>
+            <MapView
+              missions={missions}
+              missionProgress={tourProgress.missions}
+              height={window.innerHeight - (nextMission ? 72 : 0)}
+              interactive={true}
+              accentColor={tour.accentColor}
+              userPosition={userPos}
+              routePoints={routePoints}
+            />
+            <button
+              onClick={() => setFullscreen(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            {/* Tour label */}
+            <div
+              className="absolute top-4 left-4 px-3 py-1.5 rounded-xl text-white text-xs font-semibold"
+              style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
+            >
+              {tour.title}
+            </div>
+          </div>
+
+          {/* Bottom bar: next stop info + distance */}
+          {nextMission && (
+            <div
+              className="flex items-center gap-3 px-4 py-4"
+              style={{ background: 'rgba(6,15,30,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              {gpsActive && (
+                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="text-white/50 text-xs">Next stop</div>
+                <div className="text-white font-semibold text-sm truncate">{nextMission.title}</div>
+              </div>
+              {gpsActive && nextDist != null ? (
+                <span
+                  className="text-sm font-bold px-3 py-1.5 rounded-full"
+                  style={nextDist <= GPS_RADIUS
+                    ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
+                    : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
+                >
+                  {nextDist <= GPS_RADIUS ? 'Nearby ✓' : formatDistance(nextDist)}
+                </span>
+              ) : null}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
 
       {/* ── Reset confirmation ──────────────────────────────── */}
       {showReset && (

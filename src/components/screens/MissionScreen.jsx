@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2 } from 'lucide-react'
 import PhotoChallenge from '../challenges/PhotoChallenge'
 import RiddleChallenge from '../challenges/RiddleChallenge'
 import CodeChallenge from '../challenges/CodeChallenge'
@@ -14,11 +15,13 @@ export default function MissionScreen({
   onBack,
 }) {
   const [storyExpanded, setStoryExpanded] = useState(false)
+  const [showFullMap, setShowFullMap] = useState(false)
   const isCompleted = missionProgress?.status === 'completed'
 
-  const mapsUrl = mission.coordinates
-    ? `https://maps.google.com/?q=${mission.coordinates.lat},${mission.coordinates.lng}`
-    : `https://maps.google.com/?q=${encodeURIComponent(mission.mapsQuery)}`
+  // Opens Google Maps in walking-navigation mode (works on iOS + Android)
+  const navUrl = mission.coordinates
+    ? `https://www.google.com/maps/dir/?api=1&destination=${mission.coordinates.lat},${mission.coordinates.lng}&travelmode=walking`
+    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mission.mapsQuery)}&travelmode=walking`
 
   const handleComplete = (photoThumb = null, penalty = 0) => {
     if (!isCompleted) onComplete(mission.id, photoThumb, penalty)
@@ -74,10 +77,10 @@ export default function MissionScreen({
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto no-scrollbar">
-        {/* Locator map */}
+        {/* Locator map with expand button */}
         {mission.coordinates && (
           <div className="px-4 pt-3 pb-0">
-            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="relative rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
               <MapView
                 missions={[mission]}
                 height={160}
@@ -85,14 +88,21 @@ export default function MissionScreen({
                 accentColor={mission.accentColor}
                 singleMode={true}
               />
+              <button
+                onClick={() => setShowFullMap(true)}
+                className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.55)', zIndex: 400 }}
+              >
+                <Maximize2 className="w-4 h-4 text-white" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Directions button */}
+        {/* Navigation button */}
         <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
           <a
-            href={mapsUrl}
+            href={navUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 py-3 px-4 rounded-xl active:scale-[0.98] transition-transform"
@@ -102,10 +112,10 @@ export default function MissionScreen({
               className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ background: `${mission.accentColor}22` }}
             >
-              <MapPin className="w-4 h-4" style={{ color: mission.accentColor }} />
+              <Navigation2 className="w-4 h-4" style={{ color: mission.accentColor }} />
             </div>
             <div className="flex-1">
-              <div className="text-white font-medium text-sm">Get Directions</div>
+              <div className="text-white font-medium text-sm">Get Walking Directions</div>
               <div className="text-white/40 text-xs">{mission.location}</div>
             </div>
             <ExternalLink className="w-4 h-4 text-white/30 flex-shrink-0" />
@@ -180,6 +190,48 @@ export default function MissionScreen({
           )}
         </div>
       </div>
+
+      {/* Fullscreen map portal (avoids position:fixed issues inside screen-enter transform) */}
+      {showFullMap && createPortal(
+        <div className="fixed inset-0 flex flex-col" style={{ zIndex: 9999, background: '#050e1a' }}>
+          <div className="relative flex-1" style={{ minHeight: 0 }}>
+            <MapView
+              missions={[mission]}
+              height={window.innerHeight - 76}
+              interactive={true}
+              accentColor={mission.accentColor}
+              singleMode={true}
+            />
+            <button
+              onClick={() => setShowFullMap(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            <div
+              className="absolute top-4 left-4 px-3 py-1.5 rounded-xl text-white text-xs font-semibold"
+              style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
+            >
+              {mission.title}
+            </div>
+          </div>
+          {/* Navigation CTA */}
+          <div className="px-4 py-3" style={{ background: 'rgba(6,15,30,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <a
+              href={navUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white active:scale-[0.98] transition-transform"
+              style={{ background: `linear-gradient(135deg, ${mission.gradient[0]}, ${mission.gradient[1]})` }}
+            >
+              <Navigation2 className="w-5 h-5" />
+              Start Walking Navigation
+            </a>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

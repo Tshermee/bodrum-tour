@@ -66,7 +66,7 @@ function MapController({ positions }) {
  *   accentColor     — hex color for route line + unlocked markers
  *   singleMode      — show single emoji pin instead of numbered markers
  *   userPosition    — { lat, lng } | null — live GPS dot
- *   routeTo         — { lat, lng } | null — draw line from userPosition to this coord
+ *   routePoints     — [[lat,lng], ...] | null — walking route polyline (e.g. from OSRM)
  */
 export default function MapView({
   missions,
@@ -76,7 +76,7 @@ export default function MapView({
   accentColor = '#38bdf8',
   singleMode = false,
   userPosition = null,
-  routeTo = null,
+  routePoints = null,
 }) {
   const valid = missions.filter(m => m.coordinates?.lat && m.coordinates?.lng)
   if (valid.length === 0) return null
@@ -111,16 +111,12 @@ export default function MapView({
           />
         )}
 
-        {/* Route from user to next stop */}
-        {userPosition && routeTo && (
+        {/* Walking route (OSRM geometry or straight-line fallback) */}
+        {routePoints && (
           <Polyline
-            positions={[
-              [userPosition.lat, userPosition.lng],
-              [routeTo.lat, routeTo.lng],
-            ]}
+            positions={routePoints}
             color="#3b82f6"
-            weight={3}
-            dashArray="10 6"
+            weight={3.5}
             opacity={0.9}
           />
         )}

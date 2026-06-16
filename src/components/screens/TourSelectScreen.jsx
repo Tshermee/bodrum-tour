@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { ChevronRight, Clock, MapPin, Star, Trophy, CheckCircle2, Play, Compass, LogOut, Lock, Baby } from 'lucide-react'
 import MapView from '../ui/MapView'
 import PurchaseModal from '../ui/PurchaseModal'
+import RewardsModal from '../ui/RewardsModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -298,11 +299,12 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
 
 // ── TourSelectScreen ──────────────────────────────────────────────────────────
 
-export default function TourSelectScreen({ teamName, tours, allProgress, purchases, onSelectTour, onPurchase, onChangeName }) {
+export default function TourSelectScreen({ teamName, tours, allProgress, purchases, onSelectTour, onPurchase, onChangeName, lifetimePoints = 0, redeemedRewards = [], onRedeem }) {
   const [durationFilter, setDurationFilter] = useState('all')
   const [interestFilters, setInterestFilters] = useState([])
   const [kidFriendlyOnly, setKidFriendlyOnly] = useState(false)
   const [purchaseTarget, setPurchaseTarget] = useState(null)
+  const [showRewards, setShowRewards] = useState(false)
 
   const filtered = useMemo(() => {
     return tours.filter(t => {
@@ -346,14 +348,26 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
             </div>
             <h1 className="text-white font-bold text-2xl leading-tight">{teamName} 👋</h1>
           </div>
-          <button
-            onClick={onChangeName}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-transform"
-            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            <LogOut className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-white/40 text-xs">Change</span>
-          </button>
+          <div className="flex flex-col items-end gap-1.5">
+            {lifetimePoints > 0 && (
+              <button
+                onClick={() => setShowRewards(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl active:scale-95 transition-transform"
+                style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)' }}
+              >
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span className="text-amber-400 text-xs font-semibold">{lifetimePoints.toLocaleString()} pts</span>
+              </button>
+            )}
+            <button
+              onClick={onChangeName}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl active:scale-95 transition-transform"
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              <LogOut className="w-3.5 h-3.5 text-white/40" />
+              <span className="text-white/40 text-xs">Change</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -483,6 +497,15 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
             onPurchase(tourId)
           }}
           onClose={() => setPurchaseTarget(null)}
+        />
+      )}
+
+      {showRewards && (
+        <RewardsModal
+          balance={lifetimePoints}
+          redeemedRewards={redeemedRewards}
+          onRedeem={(reward) => { onRedeem(reward) }}
+          onClose={() => setShowRewards(false)}
         />
       )}
     </div>

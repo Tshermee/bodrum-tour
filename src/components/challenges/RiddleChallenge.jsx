@@ -6,6 +6,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
   const [attempts, setAttempts] = useState(0)
   const [lastWrong, setLastWrong] = useState(false)
   const [hintOpen, setHintOpen] = useState(false)
+  const [hintUsed, setHintUsed] = useState(false)
   const [shake, setShake] = useState(false)
 
   const normalize = (s) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -15,7 +16,8 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
     if (!answer.trim()) return
 
     if (normalize(answer) === normalize(challenge.answer)) {
-      onComplete()
+      const penalty = (hintUsed ? 20 : 0) + attempts * 10
+      onComplete(penalty)
     } else {
       const newAttempts = attempts + 1
       setAttempts(newAttempts)
@@ -69,7 +71,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
           style={{ border: '1px solid rgba(251,191,36,0.2)' }}
         >
           <button
-            onClick={() => setHintOpen(v => !v)}
+            onClick={() => { if (!hintOpen) setHintUsed(true); setHintOpen(v => !v) }}
             className="w-full flex items-center gap-3 px-4 py-3 active:opacity-80"
             style={{ background: 'rgba(251,191,36,0.08)' }}
           >

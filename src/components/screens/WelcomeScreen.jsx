@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Compass, ChevronRight, Star, Clock, MapPin } from 'lucide-react'
 
-export default function WelcomeScreen({ onStart }) {
+export default function WelcomeScreen({ onStart, stats }) {
   const [teamName, setTeamName] = useState('')
   const [touched, setTouched] = useState(false)
 
@@ -79,9 +79,9 @@ export default function WelcomeScreen({ onStart }) {
           style={{ animationDelay: '0.3s' }}
         >
           {[
-            { icon: MapPin, label: '7 stops' },
+            { icon: MapPin, label: stats?.tours > 1 ? `${stats.tours} tours` : `${stats?.stops ?? 7} stops` },
             { icon: Clock, label: '2.5–3.5 hrs' },
-            { icon: Star, label: '1,400 pts' },
+            { icon: Star, label: stats ? `${stats.points.toLocaleString()} pts` : '1,400 pts' },
           ].map(({ icon: Icon, label }) => (
             <div key={label} className="flex items-center gap-1.5">
               <Icon className="w-3.5 h-3.5 text-cyan-400" />

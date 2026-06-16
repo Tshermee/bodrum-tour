@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Camera, CheckCircle2, RotateCcw, Lightbulb, ChevronDown, ChevronUp, Upload } from 'lucide-react'
+import { Camera, CheckCircle2, RotateCcw, Lightbulb, ChevronDown, ChevronUp, Upload, Download } from 'lucide-react'
 
 async function resizeImage(file, maxDim = 400) {
   return new Promise(resolve => {
@@ -21,6 +21,7 @@ async function resizeImage(file, maxDim = 400) {
 export default function PhotoChallenge({ challenge, isCompleted, completedThumb, accentColor, gradient, onComplete }) {
   const [preview, setPreview] = useState(completedThumb ?? null)
   const [hintOpen, setHintOpen] = useState(false)
+  const [hintUsed, setHintUsed] = useState(false)
   const [loading, setLoading] = useState(false)
   const fileRef = useRef(null)
 
@@ -34,7 +35,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
   }
 
   const handleSubmit = () => {
-    onComplete(preview)
+    onComplete(preview, hintUsed ? 15 : 0)
   }
 
   const handleRetake = () => {
@@ -57,6 +58,16 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
               <span className="text-white font-semibold text-sm">Photo submitted!</span>
             </div>
           </div>
+          <a
+            href={completedThumb}
+            download="challenge-photo.jpg"
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium active:scale-95 transition-transform"
+            style={{ background: 'rgba(0,0,0,0.6)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <Download className="w-3.5 h-3.5 text-white" />
+            <span className="text-white">Save</span>
+          </a>
         </div>
       </div>
     )
@@ -102,7 +113,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
           style={{ border: '1px solid rgba(251,191,36,0.2)' }}
         >
           <button
-            onClick={() => setHintOpen(v => !v)}
+            onClick={() => { if (!hintOpen) setHintUsed(true); setHintOpen(v => !v) }}
             className="w-full flex items-center gap-3 px-4 py-3 active:opacity-80"
             style={{ background: 'rgba(251,191,36,0.08)' }}
           >

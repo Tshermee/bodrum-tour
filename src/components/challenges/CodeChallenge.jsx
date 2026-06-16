@@ -6,6 +6,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
   const [attempts, setAttempts] = useState(0)
   const [lastWrong, setLastWrong] = useState(false)
   const [hintOpen, setHintOpen] = useState(false)
+  const [hintUsed, setHintUsed] = useState(false)
   const inputRef = useRef(null)
 
   const normalize = (s) => s.trim().toUpperCase().replace(/\s/g, '')
@@ -15,7 +16,8 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
     if (!code.trim()) return
 
     if (normalize(code) === normalize(challenge.code)) {
-      onComplete()
+      const penalty = (hintUsed ? 20 : 0) + attempts * 10
+      onComplete(penalty)
     } else {
       const newAttempts = attempts + 1
       setAttempts(newAttempts)
@@ -74,7 +76,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
           style={{ border: '1px solid rgba(251,191,36,0.2)' }}
         >
           <button
-            onClick={() => setHintOpen(v => !v)}
+            onClick={() => { if (!hintOpen) setHintUsed(true); setHintOpen(v => !v) }}
             className="w-full flex items-center gap-3 px-4 py-3 active:opacity-80"
             style={{ background: 'rgba(251,191,36,0.08)' }}
           >

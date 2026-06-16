@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { ALL_TOURS } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { fetchAllToursForApp, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops } from './lib/api'
@@ -40,6 +40,8 @@ export default function App() {
   const [selectedTourId, setSelectedTourId] = useLocalStorage('bodrum-selected-tour-v2', null)
   const [purchases, setPurchases] = useLocalStorage('bodrum-purchases-v2', {})
   const purchaseIdRef = useRef({}) // tourId → supabase purchase UUID
+  const [lifetimePoints, setLifetimePoints] = useLocalStorage('bodrum-lifetime-pts', 0)
+  const [redeemedRewards, setRedeemedRewards] = useLocalStorage('bodrum-redeemed', [])
 
   const [tours, setTours] = useState(ALL_TOURS)
   useEffect(() => {
@@ -58,6 +60,12 @@ export default function App() {
 
   const activeTour = selectedTourId ? (tours.find(t => t.id === selectedTourId) ?? null) : null
   const activeTourProgress = selectedTourId ? allProgress[selectedTourId] ?? null : null
+
+  const welcomeStats = useMemo(() => ({
+    tours: tours.length,
+    stops: tours.reduce((s, t) => s + t.stops, 0),
+    points: tours.reduce((s, t) => s + t.totalPossibleScore, 0),
+  }), [tours])
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -95,17 +103,18 @@ export default function App() {
     setScreen('mission')
   }, [])
 
-  const handleMissionComplete = useCallback((missionId, photoThumb = null) => {
+  const handleMissionComplete = useCallback((missionId, photoThumb = null, penalty = 0) => {
     if (!activeTour) return
     const mission = activeTour.missions.find(m => m.id === missionId)
     const nextMission = activeTour.missions.find(m => m.id === missionId + 1) ?? null
+    const earnedPoints = Math.max(0, mission.points - penalty)
 
     setAllProgress(prev => {
       const tourProg = prev[selectedTourId]
       const newMissions = { ...tourProg.missions }
       newMissions[missionId] = {
         status: 'completed',
-        score: mission.points,
+        score: earnedPoints,
         completedAt: new Date().toISOString(),
         photoThumb,
       }
@@ -113,7 +122,7 @@ export default function App() {
         newMissions[nextMission.id] = { ...newMissions[nextMission.id], status: 'unlocked' }
       }
       const allDone = activeTour.missions.every(m => newMissions[m.id]?.status === 'completed')
-      const newTotal = tourProg.totalScore + mission.points
+      const newTotal = tourProg.totalScore + earnedPoints
       const newProg = {
         ...tourProg,
         missions: newMissions,
@@ -125,7 +134,7 @@ export default function App() {
       if (cache) {
         const stopId = cache.stopMap[missionId]
         if (stopId) {
-          completeStop({ tourProgressId: cache.progressId, stopId, score: mission.points, attempts: 1 })
+          completeStop({ tourProgressId: cache.progressId, stopId, score: earnedPoints, attempts: 1 })
             .catch(e => console.warn('stop sync', e))
         }
         if (allDone) {
@@ -134,9 +143,10 @@ export default function App() {
       }
       return { ...prev, [selectedTourId]: newProg }
     })
+    setLifetimePoints(prev => prev + earnedPoints)
 
-    setSuccessData({ mission, nextMission, score: mission.points })
-  }, [activeTour, selectedTourId, setAllProgress])
+    setSuccessData({ mission, nextMission, score: earnedPoints })
+  }, [activeTour, selectedTourId, setAllProgress, setLifetimePoints])
 
   const handleSuccessDismiss = useCallback(() => {
     const justCompletedId = successData?.mission?.id
@@ -161,6 +171,7 @@ export default function App() {
 
   const handleResetActiveTour = useCallback(() => {
     if (!selectedTourId || !activeTour) return
+    if (!window.confirm(`Reset "${activeTour.title}"?\n\nYour earned lifetime points are kept, but all stop progress will be cleared.`)) return
     setAllProgress(prev => ({
       ...prev,
       [selectedTourId]: {
@@ -203,6 +214,11 @@ export default function App() {
     setScreen('welcome')
   }, [setTeamName, setAllProgress, setSelectedTourId, setPurchases])
 
+  const handleRedeem = useCallback((reward) => {
+    setRedeemedRewards(prev => [...prev, { id: reward.id, redeemedAt: new Date().toISOString() }])
+    setLifetimePoints(prev => Math.max(0, prev - reward.points))
+  }, [setRedeemedRewards, setLifetimePoints])
+
   const activeMission = activeMissionId && activeTour
     ? activeTour.missions.find(m => m.id === activeMissionId)
     : null
@@ -214,7 +230,7 @@ export default function App() {
       <div className="relative w-full max-w-[430px] min-h-screen overflow-hidden bg-aegean-950">
 
         {screen === 'welcome' && (
-          <WelcomeScreen onStart={handleStartTeam} />
+          <WelcomeScreen onStart={handleStartTeam} stats={welcomeStats} />
         )}
 
         {screen === 'tourSelect' && (
@@ -226,6 +242,9 @@ export default function App() {
             onSelectTour={handleSelectTour}
             onPurchase={handlePurchase}
             onChangeName={handleFullReset}
+            lifetimePoints={lifetimePoints}
+            redeemedRewards={redeemedRewards}
+            onRedeem={handleRedeem}
           />
         )}
 

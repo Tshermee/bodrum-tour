@@ -16,10 +16,12 @@ export default function MissionScreen({
   const [storyExpanded, setStoryExpanded] = useState(false)
   const isCompleted = missionProgress?.status === 'completed'
 
-  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(mission.mapsQuery)}`
+  const mapsUrl = mission.coordinates
+    ? `https://maps.google.com/?q=${mission.coordinates.lat},${mission.coordinates.lng}`
+    : `https://maps.google.com/?q=${encodeURIComponent(mission.mapsQuery)}`
 
-  const handleComplete = (photoThumb = null) => {
-    if (!isCompleted) onComplete(mission.id, photoThumb)
+  const handleComplete = (photoThumb = null, penalty = 0) => {
+    if (!isCompleted) onComplete(mission.id, photoThumb, penalty)
   }
 
   return (
@@ -153,7 +155,7 @@ export default function MissionScreen({
               completedThumb={missionProgress?.photoThumb}
               accentColor={mission.accentColor}
               gradient={mission.gradient}
-              onComplete={handleComplete}
+              onComplete={(thumb, penalty) => handleComplete(thumb, penalty)}
             />
           )}
 
@@ -163,7 +165,7 @@ export default function MissionScreen({
               isCompleted={isCompleted}
               accentColor={mission.accentColor}
               gradient={mission.gradient}
-              onComplete={() => handleComplete(null)}
+              onComplete={penalty => handleComplete(null, penalty)}
             />
           )}
 
@@ -173,7 +175,7 @@ export default function MissionScreen({
               isCompleted={isCompleted}
               accentColor={mission.accentColor}
               gradient={mission.gradient}
-              onComplete={() => handleComplete(null)}
+              onComplete={penalty => handleComplete(null, penalty)}
             />
           )}
         </div>

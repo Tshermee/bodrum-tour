@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, CheckCircle2, Clock, MapPin, Star, Loader2, Lock, Zap } from 'lucide-react'
 
 const FEATURES = {
@@ -35,7 +36,7 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
     }, 1800)
   }
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)' }}
@@ -175,6 +176,7 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

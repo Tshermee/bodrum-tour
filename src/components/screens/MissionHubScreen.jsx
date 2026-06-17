@@ -456,10 +456,10 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
       )}
 
       {/* ── Reset confirmation ──────────────────────────────── */}
-      {showReset && (
+      {showReset && createPortal(
         <div
-          className="absolute inset-0 z-50 flex items-end justify-center"
-          style={{ background: 'rgba(0,0,0,0.7)' }}
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
           onClick={() => setShowReset(false)}
         >
           <div
@@ -489,7 +489,8 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Game rules dialog ───────────────────────────────── */}

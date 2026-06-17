@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { adminFetchTourStats, adminFetchLiveProgress } from '../../lib/api'
-import { TrendingUp, Users, Trophy, ArrowRight, Loader2, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
+import { TrendingUp, Users, Trophy, ArrowRight, Loader2, CheckCircle2, Clock } from 'lucide-react'
 
 function StatCard({ label, value, sub, icon: Icon, color }) {
   return (
@@ -32,8 +32,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState([])
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [rlsWarning, setRlsWarning] = useState(false)
-
   useEffect(() => {
     Promise.all([
       adminFetchTourStats().catch(() => []),
@@ -41,9 +39,6 @@ export default function Dashboard() {
     ]).then(([tourStats, progress]) => {
       setStats(tourStats)
       setSessions(progress)
-      // If we have purchases but no progress, RLS is likely blocking player writes
-      const totPurchases = tourStats.reduce((s, t) => s + Number(t.total_purchases ?? 0), 0)
-      if (totPurchases > 0 && progress.length === 0) setRlsWarning(true)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -76,31 +71,6 @@ export default function Dashboard() {
         <h1 className="text-2xl font-bold text-white">Dashboard</h1>
         <p className="text-gray-400 mt-1">Overview of all tours and activity</p>
       </div>
-
-      {/* RLS warning banner */}
-      {rlsWarning && (
-        <div className="flex gap-3 p-4 rounded-2xl border"
-          style={{ background: 'rgba(245,158,11,0.08)', borderColor: 'rgba(245,158,11,0.3)' }}>
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-amber-300 text-sm font-semibold mb-1">Progress not syncing from players</p>
-            <p className="text-amber-400/70 text-xs leading-relaxed mb-2">
-              The player app can't write to <code className="bg-black/30 px-1 rounded">tour_progress</code> or <code className="bg-black/30 px-1 rounded">stop_progress</code> — run this SQL in your Supabase dashboard to fix it:
-            </p>
-            <pre className="text-xs text-amber-300/80 bg-black/30 rounded-xl p-3 overflow-x-auto leading-relaxed">{`-- Allow the player app (anon key) to write progress
-ALTER TABLE purchases ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon insert purchases" ON purchases FOR INSERT WITH CHECK (true);
-
-ALTER TABLE tour_progress ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon insert tour_progress" ON tour_progress FOR INSERT WITH CHECK (true);
-CREATE POLICY "anon update tour_progress" ON tour_progress FOR UPDATE USING (true);
-
-ALTER TABLE stop_progress ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "anon insert stop_progress" ON stop_progress FOR INSERT WITH CHECK (true);
-CREATE POLICY "anon upsert stop_progress" ON stop_progress FOR UPDATE USING (true);`}</pre>
-          </div>
-        </div>
-      )}
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { adminFetchStops, adminUpsertStop, uploadStopPhoto } from '../../lib/api'
 import { Save, ArrowLeft, Loader2, Upload, X, MapPin, ExternalLink } from 'lucide-react'
+import MapView from '../../components/ui/MapView'
 
 const EMPTY = {
   id: undefined,
@@ -166,11 +167,37 @@ export default function StopEdit() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Photo */}
-        <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-4">
-          <h2 className="font-semibold text-white">Stop Photo</h2>
-          <div className="flex gap-4 items-start">
-            <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-800 border border-gray-700 flex-shrink-0 relative">
+        {/* Map + Photo side-by-side */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+          <div className="grid grid-cols-2" style={{ height: 220 }}>
+            {/* Left: map preview */}
+            <div className="relative border-r border-gray-800">
+              {form.lat && form.lng ? (
+                <MapView
+                  missions={[{
+                    id: 1,
+                    coordinates: { lat: Number(form.lat), lng: Number(form.lng) },
+                    emoji: '📍',
+                  }]}
+                  height={220}
+                  interactive={false}
+                  accentColor="#38bdf8"
+                  singleMode={true}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-600 bg-gray-800/50">
+                  <MapPin className="w-8 h-8 mb-2 opacity-40" />
+                  <span className="text-xs text-gray-500">No coordinates yet</span>
+                </div>
+              )}
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-xs text-white/60 font-medium"
+                style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                Map
+              </div>
+            </div>
+
+            {/* Right: photo upload */}
+            <div className="relative flex flex-col items-center justify-center bg-gray-800/30">
               {preview ? (
                 <>
                   <img src={preview} alt="" className="w-full h-full object-cover" />
@@ -179,27 +206,34 @@ export default function StopEdit() {
                       <Loader2 className="w-6 h-6 text-white animate-spin" />
                     </div>
                   )}
+                  {!uploading && (
+                    <div className="absolute bottom-2 right-2 flex gap-1.5">
+                      <button type="button" onClick={() => fileRef.current?.click()}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white transition-colors"
+                        style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                        <Upload className="w-3 h-3" /> Replace
+                      </button>
+                      <button type="button" onClick={() => { setPreview(null); set('photo_url', '') }}
+                        className="p-1 rounded-lg text-red-400 transition-colors"
+                        style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-600">
-                  <Upload className="w-8 h-8 mb-1" />
-                  <span className="text-xs">No photo</span>
-                </div>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <button type="button" onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl px-4 py-2 text-sm font-medium transition-colors">
-                <Upload className="w-4 h-4" /> Upload Photo
-              </button>
-              {preview && (
-                <button type="button" onClick={() => { setPreview(null); set('photo_url', '') }}
-                  className="flex items-center gap-2 text-red-400 hover:text-red-300 text-sm">
-                  <X className="w-4 h-4" /> Remove
+                <button type="button" onClick={() => fileRef.current?.click()}
+                  className="flex flex-col items-center gap-2 text-gray-500 hover:text-gray-300 transition-colors p-4">
+                  <Upload className="w-8 h-8 opacity-40" />
+                  <span className="text-xs">Upload stop photo</span>
+                  <span className="text-xs text-gray-600">Max 10 MB</span>
                 </button>
               )}
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded text-xs text-white/60 font-medium"
+                style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
+                Photo
+              </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
-              <p className="text-gray-500 text-xs">Shown to users at this stop. Max 10MB.</p>
             </div>
           </div>
         </div>

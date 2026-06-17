@@ -301,7 +301,7 @@ export async function adminFetchStopDropoff(tourId) {
 // ─── Skip Reports ─────────────────────────────────────────────────────────────
 
 export async function reportSkip({ tourId, stopOrder, stopName, teamName, reason, note }) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('skip_reports')
     .insert({ tour_id: tourId, stop_order: stopOrder, stop_name: stopName, team_name: teamName, reason, note: note || null })
   if (error) throw error

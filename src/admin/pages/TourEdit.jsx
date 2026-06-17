@@ -44,7 +44,7 @@ export default function TourEdit() {
   const [copied, setCopied] = useState(false)
 
   function copyPreviewLink() {
-    const url = `${window.location.origin}${window.location.pathname.replace('/admin', '')}?preview=${form.preview_token}`
+    const url = `${window.location.origin}${window.location.pathname.replace(/\/admin.*/, '')}?preview=${form.preview_token}`
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)

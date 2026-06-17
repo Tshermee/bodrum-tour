@@ -32,25 +32,28 @@ function makeUserIcon() {
   })
 }
 
-// Fits bounds once on mount, then just keeps tiles invalidated
+// Fits bounds once on mount, stops any animation on unmount to prevent
+// Leaflet's _leaflet_pos crash when the container is removed mid-animation.
 function MapController({ positions }) {
   const map = useMap()
   const fitted = useRef(false)
 
   useEffect(() => {
     map.invalidateSize()
-    if (fitted.current || positions.length === 0) return
-    fitted.current = true
-    if (positions.length === 1) {
-      map.setView(positions[0], 15)
-    } else {
-      try {
-        map.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15 })
-      } catch (_) {
-        map.setView(positions[0], 14)
+    if (!fitted.current && positions.length > 0) {
+      fitted.current = true
+      if (positions.length === 1) {
+        map.setView(positions[0], 15)
+      } else {
+        try {
+          map.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15 })
+        } catch (_) {
+          map.setView(positions[0], 14)
+        }
       }
     }
-  })
+    return () => { map.stop() }
+  }, [map]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }

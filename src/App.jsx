@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { ALL_TOURS } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
-import { fetchAllToursForApp, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops } from './lib/api'
+import { fetchAllToursForApp, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops, reportSkip } from './lib/api'
 import WelcomeScreen from './components/screens/WelcomeScreen'
 import TourSelectScreen from './components/screens/TourSelectScreen'
 import MissionHubScreen from './components/screens/MissionHubScreen'
@@ -186,6 +186,49 @@ export default function App() {
     setScreen('tourSelect')
   }, [selectedTourId, activeTour, setAllProgress, setSelectedTourId])
 
+  const handleSkipMission = useCallback((missionId, reason, note) => {
+    if (!activeTour) return
+    const mission = activeTour.missions.find(m => m.id === missionId)
+    const nextMission = activeTour.missions.find(m => m.id === missionId + 1) ?? null
+
+    setAllProgress(prev => {
+      const tourProg = prev[selectedTourId]
+      const newMissions = { ...tourProg.missions }
+      newMissions[missionId] = {
+        status: 'completed',
+        score: 0,
+        completedAt: new Date().toISOString(),
+        photoThumb: null,
+        skipped: true,
+      }
+      if (nextMission) {
+        newMissions[nextMission.id] = { ...newMissions[nextMission.id], status: 'unlocked' }
+      }
+      const allDone = activeTour.missions.every(m => newMissions[m.id]?.status === 'completed')
+      return {
+        ...prev,
+        [selectedTourId]: {
+          ...tourProg,
+          missions: newMissions,
+          completedAt: allDone ? new Date().toISOString() : tourProg.completedAt,
+        },
+      }
+    })
+
+    // Fire-and-forget — skip works offline too
+    reportSkip({
+      tourId: selectedTourId,
+      stopOrder: missionId,
+      stopName: mission?.title ?? '',
+      teamName,
+      reason: reason || null,
+      note: note || null,
+    }).catch(e => console.warn('skip report', e))
+
+    setActiveMissionId(null)
+    setScreen('hub')
+  }, [activeTour, selectedTourId, setAllProgress, teamName])
+
   const handlePurchase = useCallback(async (tourId) => {
     // Optimistic local update
     setPurchases(prev => ({ ...prev, [tourId]: true }))
@@ -266,6 +309,7 @@ export default function App() {
             missionIndex={activeTour.missions.findIndex(m => m.id === activeMissionId)}
             totalMissions={activeTour.missions.length}
             onComplete={handleMissionComplete}
+            onSkip={handleSkipMission}
             onBack={handleBackToHub}
           />
         )}

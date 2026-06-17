@@ -1,19 +1,14 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2, SkipForward } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters } from '../../lib/geo'
 
 const SKIP_RADIUS = 300      // metres — skip button visible when within this range
 const COMPLETE_RADIUS = 300  // metres — challenge locked when farther than this
 
-const SKIP_REASONS = [
-  { id: 'construction', label: '🚧 Construction / roadwork' },
-  { id: 'accessibility', label: '♿ Accessibility issue' },
-  { id: 'closed', label: '🚫 Location closed' },
-  { id: 'notfound', label: '❓ Can\'t find it' },
-  { id: 'other', label: '✏️ Other' },
-]
+const SKIP_REASON_IDS = ['construction', 'accessibility', 'closed', 'notfound', 'other']
 import PhotoChallenge from '../challenges/PhotoChallenge'
 import RiddleChallenge from '../challenges/RiddleChallenge'
 import CodeChallenge from '../challenges/CodeChallenge'
@@ -29,6 +24,14 @@ export default function MissionScreen({
   onSkip,
   onBack,
 }) {
+  const { t } = useTranslation()
+  const SKIP_REASONS = [
+    { id: 'construction', label: t('mission_skip_reason_construction') },
+    { id: 'accessibility', label: t('mission_skip_reason_accessibility') },
+    { id: 'closed', label: t('mission_skip_reason_closed') },
+    { id: 'notfound', label: t('mission_skip_reason_notfound') },
+    { id: 'other', label: t('mission_skip_reason_other') },
+  ]
   const [storyExpanded, setStoryExpanded] = useState(false)
   const [showFullMap, setShowFullMap] = useState(false)
   const [showSkipDialog, setShowSkipDialog] = useState(false)
@@ -64,7 +67,7 @@ export default function MissionScreen({
       {bypassGps && (
         <div className="flex items-center justify-center gap-2 py-1.5 text-xs font-semibold"
           style={{ background: 'rgba(234,179,8,0.15)', borderBottom: '1px solid rgba(234,179,8,0.3)', color: '#fbbf24' }}>
-          🧪 Test mode — GPS check bypassed
+          🧪 {t('mission_test_mode')}
         </div>
       )}
       {/* Header */}
@@ -80,7 +83,7 @@ export default function MissionScreen({
             style={{ background: 'rgba(255,255,255,0.12)' }}
           >
             <ArrowLeft className="w-4 h-4 text-white" />
-            <span className="text-white text-sm font-medium">Back</span>
+            <span className="text-white text-sm font-medium">{t('mission_back')}</span>
           </button>
           <div
             className="px-3 py-1.5 rounded-full text-xs font-semibold text-white/70"
@@ -100,7 +103,7 @@ export default function MissionScreen({
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-white/60 text-xs font-semibold tracking-wider uppercase mb-1">
-              Stop {missionIndex + 1} · {mission.points} pts
+              {t('mission_stop')} {missionIndex + 1} · {mission.points} {t('mission_pts')}
             </div>
             <h1 className="font-display text-white text-xl font-bold leading-tight">
               {mission.title}
@@ -153,7 +156,7 @@ export default function MissionScreen({
               <Navigation2 className="w-4 h-4" style={{ color: mission.accentColor }} />
             </div>
             <div className="flex-1">
-              <div className="text-white font-medium text-sm">Get Walking Directions</div>
+              <div className="text-white font-medium text-sm">{t('mission_navigation')}</div>
               <div className="text-white/40 text-xs">{mission.location}</div>
             </div>
             <ExternalLink className="w-4 h-4 text-white/30 flex-shrink-0" />
@@ -172,8 +175,8 @@ export default function MissionScreen({
               <BookOpen className="w-4 h-4 text-amber-400" />
             </div>
             <div className="flex-1">
-              <div className="text-white font-medium text-sm">The Story</div>
-              <div className="text-white/40 text-xs">Tap to {storyExpanded ? 'hide' : 'read'}</div>
+              <div className="text-white font-medium text-sm">{t('mission_story')}</div>
+              <div className="text-white/40 text-xs">{storyExpanded ? t('mission_story_hide') : t('mission_story_read')}</div>
             </div>
             {storyExpanded
               ? <ChevronUp className="w-4 h-4 text-white/30" />
@@ -193,7 +196,7 @@ export default function MissionScreen({
         {/* Challenge area */}
         <div className="px-4 pb-4">
           <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3">
-            Your Challenge
+            {t('mission_challenge_label')}
           </div>
 
           {!isCompleted && !canComplete && (
@@ -202,9 +205,9 @@ export default function MissionScreen({
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
             >
               <div className="text-3xl">📍</div>
-              <p className="text-white/70 text-sm font-medium">You need to be at the location to complete this challenge.</p>
+              <p className="text-white/70 text-sm font-medium">{t('mission_location_required')}</p>
               <p className="text-white/35 text-xs">
-                {distToStop != null ? `${Math.round(distToStop)} m away` : 'GPS locating…'}
+                {distToStop != null ? `${Math.round(distToStop)} ${t('mission_location_away')}` : t('mission_location_gps')}
               </p>
             </div>
           )}
@@ -250,7 +253,7 @@ export default function MissionScreen({
               style={{ color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
             >
               <SkipForward className="w-3.5 h-3.5" />
-              Skip this stop
+              {t('mission_skip')}
             </button>
           </div>
         )}
@@ -275,9 +278,9 @@ export default function MissionScreen({
                 <SkipForward className="w-5 h-5 text-red-400" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg leading-tight">Skip this stop?</h3>
+                <h3 className="text-white font-bold text-lg leading-tight">{t('mission_skip_confirm_title')}</h3>
                 <p className="text-white/45 text-sm mt-0.5">
-                  No points will be awarded. We'll log a report so we can fix the issue.
+                  {t('mission_skip_confirm_text')}
                 </p>
               </div>
             </div>
@@ -285,7 +288,7 @@ export default function MissionScreen({
             {/* Reason chips */}
             <div className="mb-5">
               <div className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-2.5">
-                What's the problem? (optional)
+                {t('mission_skip_reason_label')}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {SKIP_REASONS.map(r => (
@@ -307,7 +310,7 @@ export default function MissionScreen({
                   onChange={e => setSkipNote(e.target.value)}
                   rows={2}
                   className="mt-2 w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500/40 placeholder-white/20"
-                  placeholder="Describe the issue…"
+                  placeholder={t('mission_skip_reason_placeholder')}
                   autoFocus
                 />
               )}
@@ -320,14 +323,14 @@ export default function MissionScreen({
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
-                Cancel
+                {t('mission_skip_cancel')}
               </button>
               <button
                 onClick={handleConfirmSkip}
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white active:scale-[0.98] transition-transform"
                 style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
               >
-                Skip Stop
+                {t('mission_skip_button')}
               </button>
             </div>
           </div>
@@ -370,7 +373,7 @@ export default function MissionScreen({
               style={{ background: `linear-gradient(135deg, ${mission.gradient[0]}, ${mission.gradient[1]})` }}
             >
               <Navigation2 className="w-5 h-5" />
-              Start Walking Navigation
+              {t('mission_navigation')}
             </a>
           </div>
         </div>,

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Camera, CheckCircle2, RotateCcw, Lightbulb, ChevronDown, ChevronUp, Upload, Download } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 async function resizeImage(file, maxDim = 400) {
   return new Promise(resolve => {
@@ -20,6 +21,7 @@ async function resizeImage(file, maxDim = 400) {
 }
 
 export default function PhotoChallenge({ challenge, isCompleted, completedThumb, accentColor, gradient, onComplete }) {
+  const { t } = useTranslation()
   const [preview, setPreview] = useState(completedThumb ?? null)
   const [hintOpen, setHintOpen] = useState(false)
   const [hintUsed, setHintUsed] = useState(false)
@@ -57,7 +59,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
             style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)' }}>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-green-400" />
-              <span className="text-white font-semibold text-sm">Photo submitted!</span>
+              <span className="text-white font-semibold text-sm">{t('photo_challenge_success')}</span>
             </div>
           </div>
           <a
@@ -68,7 +70,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
             onClick={e => e.stopPropagation()}
           >
             <Download className="w-3.5 h-3.5 text-white" />
-            <span className="text-white">Save</span>
+            <span className="text-white">{t('photo_challenge_download')}</span>
           </a>
         </div>
       </div>
@@ -83,8 +85,8 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
       >
         <CheckCircle2 className="w-8 h-8 text-green-400 flex-shrink-0" />
         <div>
-          <div className="text-green-400 font-semibold">Challenge Complete!</div>
-          <div className="text-white/50 text-sm">Photo submitted successfully.</div>
+          <div className="text-green-400 font-semibold">{t('photo_challenge_success')}</div>
+          <div className="text-white/50 text-sm">{t('photo_challenge_success_text')}</div>
         </div>
       </div>
     )
@@ -100,7 +102,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
         <div className="flex items-center gap-2 mb-3">
           <Camera className="w-4 h-4" style={{ color: accentColor }} />
           <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: accentColor }}>
-            Photo Challenge
+            {t('photo_challenge_take_photo')}
           </span>
         </div>
         <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">
@@ -124,7 +126,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
           >
             <Lightbulb className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-amber-400 text-sm font-medium flex-1 text-left">
-              {hintUsed ? 'Hint (−15 pts used)' : 'Need a hint?'}
+              {hintUsed ? t('photo_challenge_hint_used') : t('photo_challenge_hint_unused')}
             </span>
             {hintOpen ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
           </button>
@@ -164,9 +166,9 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
                 <Lightbulb className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">Use a hint?</h3>
+                <h3 className="text-white font-bold text-lg">{t('hint_warning_title')}</h3>
                 <p className="text-white/50 text-sm mt-0.5">
-                  This will permanently deduct <span className="text-amber-400 font-semibold">15 points</span> from your score for this stop.
+                  {t('hint_warning_deduct')} <span className="text-amber-400 font-semibold">15 {t('hint_warning_from_score')}</span>
                 </p>
               </div>
             </div>
@@ -176,14 +178,14 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
-                Cancel
+                {t('hint_cancel')}
               </button>
               <button
                 onClick={() => { setHintUsed(true); setHintOpen(true); setShowHintWarning(false) }}
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}
               >
-                Reveal Hint (−15 pts)
+                {t('photo_hint_reveal')}
               </button>
             </div>
           </div>
@@ -205,7 +207,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
               style={{ background: 'rgba(0,0,0,0.6)' }}
             >
               <RotateCcw className="w-3.5 h-3.5 text-white" />
-              <span className="text-white">Retake</span>
+              <span className="text-white">{t('photo_challenge_retake')}</span>
             </button>
           </div>
 
@@ -219,7 +221,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
             }}
           >
             <CheckCircle2 className="w-5 h-5" />
-            Submit Photo
+            {t('photo_challenge_submit')}
           </button>
         </div>
       ) : (
@@ -244,10 +246,10 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
                 <Camera className="w-7 h-7" style={{ color: accentColor }} />
               </div>
               <div className="text-center">
-                <div className="text-white font-semibold">Take Photo</div>
+                <div className="text-white font-semibold">{t('photo_challenge_take_photo')}</div>
                 <div className="text-white/40 text-xs mt-0.5 flex items-center justify-center gap-1">
                   <Upload className="w-3 h-3" />
-                  or tap to upload from library
+                  {t('photo_challenge_upload')}
                 </div>
               </div>
             </>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Star, ChevronRight, MapPin } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export default function SuccessOverlay({ mission, nextMission, score, totalScore, onDismiss }) {
+  const { t } = useTranslation()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
           {/* Title */}
           <div className="text-center mb-5">
             <div className="text-green-400 text-xs font-semibold tracking-[0.25em] uppercase mb-1">
-              Mission Complete!
+              {t('success_complete')}
             </div>
             <h2 className="font-display text-white text-2xl font-bold">{mission.title}</h2>
           </div>
@@ -69,7 +71,7 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
           >
             <div className="flex items-center gap-2">
               <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-              <span className="text-white font-semibold">Points Earned</span>
+              <span className="text-white font-semibold">{t('success_points_earned')}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-400 text-2xl font-black">+{score}</span>
@@ -78,7 +80,7 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
 
           {/* Total score */}
           <div className="text-center text-white/40 text-sm mb-6">
-            Total score: <span className="text-white font-bold">{totalScore}</span> pts
+            {t('success_total_score')}: <span className="text-white font-bold">{totalScore}</span> pts
           </div>
 
           {/* Next mission preview */}
@@ -90,7 +92,7 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
                 border: `1px solid ${nextMission.accentColor}33`,
               }}
             >
-              <div className="text-white/50 text-xs tracking-wider uppercase mb-2">Up Next</div>
+              <div className="text-white/50 text-xs tracking-wider uppercase mb-2">{t('success_up_next')}</div>
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
@@ -114,8 +116,8 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
               style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}
             >
               <div className="text-2xl mb-1">🎉</div>
-              <div className="text-amber-400 font-semibold">Final stop completed!</div>
-              <div className="text-white/50 text-sm">Time to see your results!</div>
+              <div className="text-amber-400 font-semibold">{t('success_final')}</div>
+              <div className="text-white/50 text-sm">{t('success_final_message')}</div>
             </div>
           )}
 
@@ -131,9 +133,9 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
             }}
           >
             {nextMission ? (
-              <>Continue <ChevronRight className="w-5 h-5" /></>
+              <>{t('success_continue')} <ChevronRight className="w-5 h-5" /></>
             ) : (
-              <>See My Results 🏆</>
+              <>{t('success_results')} 🏆</>
             )}
           </button>
         </div>

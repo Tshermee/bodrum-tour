@@ -1,29 +1,29 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, CheckCircle2, Clock, MapPin, Star, Loader2, Lock, Zap } from 'lucide-react'
-
-const FEATURES = {
-  short: [
-    '📍 Curated stop-by-stop route',
-    '📸 Photo challenges & fun puzzles',
-    '💡 Hints always available',
-    '🔄 Replay anytime, keep forever',
-  ],
-  full: [
-    '📍 Curated stop-by-stop route with stories',
-    '🧩 Mix of photo, riddle & code challenges',
-    '🗺️ Offline-ready map for every stop',
-    '💡 Hints always available',
-    '🏆 Score tracking & completion certificate',
-    '🔄 Replay anytime, keep forever',
-  ],
-}
+import { useTranslation } from 'react-i18next'
 
 export default function PurchaseModal({ tour, onPurchase, onClose }) {
+  const { t } = useTranslation()
   const [step, setStep] = useState('preview') // 'preview' | 'processing' | 'success'
 
+  const SHORT_FEATURES = [
+    `📍 ${t('purchase_feature_route')}`,
+    `📸 ${t('purchase_feature_challenges')}`,
+    `💡 ${t('purchase_feature_hints')}`,
+    `🔄 ${t('purchase_feature_replay')}`,
+  ]
+  const FULL_FEATURES = [
+    `📍 ${t('purchase_feature_route_full')}`,
+    `🧩 ${t('purchase_feature_challenges_full')}`,
+    `🗺️ ${t('purchase_feature_map')}`,
+    `💡 ${t('purchase_feature_hints')}`,
+    `🏆 ${t('purchase_feature_score')}`,
+    `🔄 ${t('purchase_feature_replay')}`,
+  ]
+
   const isShort = tour.price <= 5
-  const features = isShort ? FEATURES.short : FEATURES.full
+  const features = isShort ? SHORT_FEATURES : FULL_FEATURES
 
   const handlePay = () => {
     setStep('processing')
@@ -104,12 +104,12 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
           <div className="px-4 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
             {/* Price */}
             <div className="text-center mb-5">
-              <div className="text-white/40 text-xs uppercase tracking-widest mb-1">One-time purchase</div>
+              <div className="text-white/40 text-xs uppercase tracking-widest mb-1">{t('purchase_one_time')}</div>
               <div className="flex items-baseline justify-center gap-1">
                 <span className="text-white/60 text-2xl font-light">€</span>
                 <span className="text-white font-black text-6xl leading-none">{tour.price}</span>
               </div>
-              <div className="text-white/30 text-xs mt-1">Yours forever · No subscription</div>
+              <div className="text-white/30 text-xs mt-1">{t('purchase_price_footer')}</div>
             </div>
 
             {/* Features */}
@@ -118,7 +118,7 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
             >
               <div className="text-white/40 text-xs font-semibold tracking-widest uppercase mb-3">
-                What's included
+                {t('purchase_included')}
               </div>
               <div className="flex flex-col gap-2.5">
                 {features.map((f, i) => (
@@ -140,11 +140,11 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
               }}
             >
               <Lock className="w-4 h-4" />
-              Purchase for €{tour.price}
+              {t('purchase_button', { price: tour.price })}
             </button>
 
             <p className="text-center text-white/20 text-xs mt-3">
-              Simulated purchase · No real payment processed
+              {t('purchase_simulated')}
             </p>
           </div>
         )}
@@ -152,8 +152,8 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
         {step === 'processing' && (
           <div className="px-4 py-10 pb-12 flex flex-col items-center gap-4">
             <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
-            <div className="text-white font-semibold">Processing payment…</div>
-            <div className="text-white/40 text-sm">Please wait</div>
+            <div className="text-white font-semibold">{t('purchase_processing')}</div>
+            <div className="text-white/40 text-sm">{t('purchase_wait')}</div>
           </div>
         )}
 
@@ -168,10 +168,10 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
             >
               <CheckCircle2 className="w-8 h-8 text-white" />
             </div>
-            <div className="text-white font-bold text-lg">Purchase complete!</div>
+            <div className="text-white font-bold text-lg">{t('purchase_success')}</div>
             <div className="flex items-center gap-2 text-white/50 text-sm">
               <Zap className="w-4 h-4 text-cyan-400" />
-              Starting your adventure…
+              {t('purchase_starting')}
             </div>
           </div>
         )}

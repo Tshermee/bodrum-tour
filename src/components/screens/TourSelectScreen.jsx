@@ -1,34 +1,23 @@
 import { useState, useMemo } from 'react'
 import { ChevronRight, Clock, MapPin, Star, Trophy, CheckCircle2, Play, Compass, LogOut, Lock, Baby } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import MapView from '../ui/MapView'
 import PurchaseModal from '../ui/PurchaseModal'
 import RewardsModal from '../ui/RewardsModal'
+import LanguageSelector from '../ui/LanguageSelector'
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants (ids + emoji only — labels resolved via t() inside component) ───
 
-const DURATION_FILTERS = [
-  { id: 'all', label: 'All lengths' },
-  { id: 'quick', label: 'Under 1.5h' },
-  { id: 'half', label: '1.5 – 3h' },
-  { id: 'full', label: '3h+' },
+const INTEREST_FILTER_IDS = [
+  { id: 'history', emoji: '🏛️' },
+  { id: 'food', emoji: '🍽️' },
+  { id: 'photography', emoji: '📸' },
+  { id: 'nature', emoji: '🌿' },
+  { id: 'active', emoji: '🏃' },
+  { id: 'culture', emoji: '🏺' },
+  { id: 'scenic', emoji: '🏔️' },
+  { id: 'architecture', emoji: '🏗️' },
 ]
-
-const INTEREST_FILTERS = [
-  { id: 'history', label: '🏛️ History' },
-  { id: 'food', label: '🍽️ Food' },
-  { id: 'photography', label: '📸 Photo' },
-  { id: 'nature', label: '🌿 Nature' },
-  { id: 'active', label: '🏃 Active' },
-  { id: 'culture', label: '🏺 Culture' },
-  { id: 'scenic', label: '🏔️ Scenic' },
-  { id: 'architecture', label: '🏗️ Archit.' },
-]
-
-const DIFFICULTY_STYLE = {
-  easy: { label: 'Easy', color: '#4ade80', dots: 1 },
-  moderate: { label: 'Moderate', color: '#fbbf24', dots: 2 },
-  challenging: { label: 'Challenging', color: '#f87171', dots: 3 },
-}
 
 // ── FilterPill ────────────────────────────────────────────────────────────────
 
@@ -75,6 +64,16 @@ function FilterRow({ label, children }) {
 // ── TourCard ──────────────────────────────────────────────────────────────────
 
 function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
+  const { t } = useTranslation()
+  const DIFFICULTY_STYLE = {
+    easy: { label: t('tour_select_difficulty_easy'), color: '#4ade80', dots: 1 },
+    moderate: { label: t('tour_select_difficulty_moderate'), color: '#fbbf24', dots: 2 },
+    challenging: { label: t('tour_select_difficulty_challenging'), color: '#f87171', dots: 3 },
+  }
+  const INTEREST_FILTERS = INTEREST_FILTER_IDS.map(({ id, emoji }) => ({
+    id,
+    label: `${emoji} ${t(`tour_select_tag_${id}`)}`,
+  }))
   const diff = DIFFICULTY_STYLE[tour.difficulty] ?? DIFFICULTY_STYLE.easy
   const completedStops = progress
     ? Object.values(progress.missions).filter(m => m.status === 'completed').length
@@ -122,7 +121,7 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
           }}
         >
           {canAccess ? (
-            <><CheckCircle2 className="w-3 h-3" /> Unlocked</>
+            <><CheckCircle2 className="w-3 h-3" /> {t('tour_select_unlocked')}</>
           ) : (
             <><Lock className="w-3 h-3" /> €{tour.price}</>
           )}
@@ -138,7 +137,7 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
               border: '1px solid rgba(251,191,36,0.4)',
             }}
           >
-            <Baby className="w-3 h-3" /> Kids
+            <Baby className="w-3 h-3" /> {t('tour_select_kids')}
           </div>
         )}
       </div>
@@ -167,7 +166,7 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
                   className="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1"
                   style={{ background: 'rgba(34,197,94,0.2)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' }}
                 >
-                  <CheckCircle2 className="w-3 h-3" /> Done
+                  <CheckCircle2 className="w-3 h-3" /> {t('tour_select_done')}
                 </span>
               )}
             </div>
@@ -179,7 +178,7 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
         <div className="flex items-center gap-4 mb-3">
           <div className="flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-white/60 text-xs">{tour.stops} stops</span>
+            <span className="text-white/60 text-xs">{tour.stops} {t('tour_select_stops')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-white/40" />
@@ -187,7 +186,7 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
           </div>
           <div className="flex items-center gap-1.5">
             <Star className="w-3.5 h-3.5 text-white/40" />
-            <span className="text-white/60 text-xs">{tour.totalPossibleScore} pts</span>
+            <span className="text-white/60 text-xs">{tour.totalPossibleScore} {t('tour_select_points_available')}</span>
           </div>
           {/* Difficulty dots */}
           <div className="flex items-center gap-1 ml-auto">
@@ -208,7 +207,7 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
         {isStarted && (
           <div className="mb-3">
             <div className="flex justify-between items-center mb-1">
-              <span className="text-white/40 text-xs">{completedStops} / {tour.stops} stops</span>
+              <span className="text-white/40 text-xs">{completedStops} / {tour.stops} {t('tour_select_stops')}</span>
               <span className="text-xs font-semibold" style={{ color: tour.accentColor }}>
                 {progress.totalScore} pts
               </span>
@@ -282,13 +281,13 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
             }
           >
             {!canAccess ? (
-              <><Lock className="w-3.5 h-3.5" /> Buy €{tour.price}</>
+              <><Lock className="w-3.5 h-3.5" /> {t('tour_select_buy', { price: tour.price })}</>
             ) : isCompleted ? (
-              <><Play className="w-3.5 h-3.5" /> Again</>
+              <><Play className="w-3.5 h-3.5" /> {t('tour_select_again')}</>
             ) : isStarted ? (
-              <><ChevronRight className="w-4 h-4" /> Resume</>
+              <><ChevronRight className="w-4 h-4" /> {t('tour_select_resume')}</>
             ) : (
-              <><ChevronRight className="w-4 h-4" /> Start</>
+              <><ChevronRight className="w-4 h-4" /> {t('tour_select_start')}</>
             )}
           </div>
         </div>
@@ -300,6 +299,20 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
 // ── TourSelectScreen ──────────────────────────────────────────────────────────
 
 export default function TourSelectScreen({ teamName, tours, allProgress, purchases, onSelectTour, onPurchase, onChangeName, lifetimePoints = 0, redeemedRewards = [], onRedeem }) {
+  const { t } = useTranslation()
+
+  const DURATION_FILTERS = [
+    { id: 'all', label: t('tour_select_duration_all') },
+    { id: 'quick', label: t('tour_select_duration_quick') },
+    { id: 'half', label: t('tour_select_duration_half') },
+    { id: 'full', label: t('tour_select_duration_full') },
+  ]
+
+  const INTEREST_FILTERS_MAIN = INTEREST_FILTER_IDS.map(({ id, emoji }) => ({
+    id,
+    label: `${emoji} ${t(`tour_select_tag_${id}`)}`,
+  }))
+
   const [durationFilter, setDurationFilter] = useState('all')
   const [interestFilters, setInterestFilters] = useState([])
   const [kidFriendlyOnly, setKidFriendlyOnly] = useState(false)
@@ -344,11 +357,12 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
         <div className="flex items-center justify-between pt-2 mb-4">
           <div>
             <div className="text-cyan-400 text-xs font-semibold tracking-[0.25em] uppercase">
-              Welcome back
+              {t('tour_select_welcome')}
             </div>
             <h1 className="text-white font-bold text-2xl leading-tight">{teamName} 👋</h1>
           </div>
           <div className="flex flex-col items-end gap-1.5">
+            <LanguageSelector />
             {lifetimePoints > 0 && (
               <button
                 onClick={() => setShowRewards(true)}
@@ -365,7 +379,7 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
               style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
             >
               <LogOut className="w-3.5 h-3.5 text-white/40" />
-              <span className="text-white/40 text-xs">Change</span>
+              <span className="text-white/40 text-xs">{t('tour_select_change_name')}</span>
             </button>
           </div>
         </div>
@@ -373,7 +387,7 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
         <div className="flex items-center gap-2">
           <Compass className="w-4 h-4 text-cyan-400" />
           <span className="text-white/70 text-sm">
-            Choose your Bodrum adventure
+            {t('tour_select_tagline')}
           </span>
         </div>
       </div>
@@ -396,7 +410,7 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
         </FilterRow>
 
         <FilterRow label="Interests">
-          {INTEREST_FILTERS.map(f => (
+          {INTEREST_FILTERS_MAIN.map(f => (
             <FilterPill
               key={f.id}
               label={f.label}
@@ -426,7 +440,7 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
             }
           >
             <Baby className="w-4 h-4" />
-            <span className="text-sm font-medium">Kid-friendly tours only</span>
+            <span className="text-sm font-medium">{t('tour_select_kids')}</span>
             <div
               className="ml-auto w-4 h-4 rounded-full border-2 flex items-center justify-center"
               style={{
@@ -444,8 +458,8 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
       <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
         <span className="text-white/40 text-sm">
           {filtered.length === tours.length
-            ? `All ${tours.length} tours`
-            : `${filtered.length} of ${tours.length} tours`}
+            ? `${t('tour_select_results_all')} ${tours.length} ${t('tour_select_results_tours')}`
+            : `${filtered.length} ${t('tour_select_results_of')} ${tours.length} ${t('tour_select_results_tours')}`}
         </span>
         {activeFilterCount > 0 && (
           <button
@@ -456,7 +470,7 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
             }}
             className="text-cyan-400 text-sm font-medium active:opacity-60"
           >
-            Clear filters ({activeFilterCount})
+            {t('tour_select_clear_filters')} ({activeFilterCount})
           </button>
         )}
       </div>
@@ -466,8 +480,8 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="text-4xl mb-3">🧭</div>
-            <div className="text-white/50 font-medium mb-1">No tours match your filters</div>
-            <div className="text-white/30 text-sm">Try adjusting the filters above</div>
+            <div className="text-white/50 font-medium mb-1">{t('tour_select_no_results')}</div>
+            <div className="text-white/30 text-sm">{t('tour_select_no_results_sub')}</div>
           </div>
         ) : (
           <div className="flex flex-col gap-3 stagger-children">
@@ -485,7 +499,7 @@ export default function TourSelectScreen({ teamName, tours, allProgress, purchas
         )}
 
         <div className="mt-4 mb-2 text-center">
-          <p className="text-white/15 text-xs">Bodrum, Turkey · More tours coming soon</p>
+          <p className="text-white/15 text-xs">{t('completion_footer')}</p>
         </div>
       </div>
 

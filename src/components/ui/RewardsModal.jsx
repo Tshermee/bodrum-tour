@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom'
 import { X, Star, Gift, CheckCircle2, Lock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const REWARDS = [
   { id: 'coffee', emoji: '☕', title: 'Free Coffee', desc: 'One free coffee at any partner café in Bodrum', points: 100 },
@@ -10,17 +11,19 @@ const REWARDS = [
 ]
 
 function RewardCode({ reward, redeemedAt }) {
+  const { t } = useTranslation()
   const code = `BDR-${reward.id.toUpperCase()}-${new Date(redeemedAt).getTime().toString(36).toUpperCase().slice(-5)}`
   return (
     <div className="mt-2 px-3 py-2 rounded-lg text-center"
       style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <div className="text-green-400 font-mono font-bold text-sm tracking-widest">{code}</div>
-      <div className="text-white/30 text-xs mt-0.5">Show this code at the venue</div>
+      <div className="text-white/30 text-xs mt-0.5">{t('rewards_code_show')}</div>
     </div>
   )
 }
 
 export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClose }) {
+  const { t } = useTranslation()
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
@@ -41,12 +44,12 @@ export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClo
         <div className="px-5 pt-2 pb-4 flex items-center justify-between">
           <div>
             <h2 className="text-white font-bold text-xl flex items-center gap-2">
-              <Gift className="w-5 h-5 text-amber-400" /> Rewards
+              <Gift className="w-5 h-5 text-amber-400" /> {t('rewards_title')}
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
               <span className="text-amber-400 font-bold">{balance.toLocaleString()}</span>
-              <span className="text-white/40 text-sm">points available</span>
+              <span className="text-white/40 text-sm">{t('rewards_points_available')}</span>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -99,7 +102,7 @@ export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClo
                         style={canAfford
                           ? { background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)' }
                           : { background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.2)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        {canAfford ? <><Gift className="w-3.5 h-3.5" /> Redeem</> : <><Lock className="w-3 h-3" /> {reward.points - balance} more</>}
+                        {canAfford ? <><Gift className="w-3.5 h-3.5" /> {t('rewards_redeem')}</> : <><Lock className="w-3 h-3" /> {reward.points - balance} more</>}
                       </button>
                     )}
                     {isRedeemed && (
@@ -112,7 +115,7 @@ export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClo
           </div>
 
           <p className="text-center text-white/15 text-xs mt-5">
-            Present your redemption code at the venue · Codes are valid for 30 days
+            {t('rewards_code_footer')}
           </p>
         </div>
       </div>

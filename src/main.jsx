@@ -2,6 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
+import './i18n/index.js'
 
 const isAdmin = window.location.pathname.includes('/admin')
 

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Star, Lock, CheckCircle2, ChevronRight, RotateCcw,
   Trophy, Zap, ArrowLeft, MapPin, Navigation2, Maximize2, X, SkipForward,
@@ -12,6 +13,7 @@ import { getDistanceMeters, formatDistance } from '../../lib/geo'
 const GPS_RADIUS = 50 // metres
 
 function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) {
+  const { t } = useTranslation()
   const status = progress?.status ?? 'locked'
   const isLocked    = status === 'locked'
   const isCompleted = status === 'completed'
@@ -95,7 +97,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
           <div className="text-white font-semibold text-sm truncate">{mission.title}</div>
           <div className="text-white/50 text-xs truncate mt-0.5">
             {isUnlocked && isFar
-              ? `Walk ${formatDistance(distance)} to unlock`
+              ? `${t('hub_stop_walk')} ${formatDistance(distance)} ${t('hub_stop_walk_to_unlock')}`
               : mission.location}
           </div>
         </div>
@@ -103,7 +105,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
         {/* Right */}
         <div className="flex-shrink-0 flex items-center gap-2">
           {isSkipped ? (
-            <span className="text-amber-500/60 text-xs font-medium">skipped</span>
+            <span className="text-amber-500/60 text-xs font-medium">{t('hub_stop_skipped')}</span>
           ) : isCompleted ? (
             <div className="flex items-center gap-1">
               <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
@@ -125,6 +127,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
 }
 
 export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenMission, onBackToSelect, onResetTour }) {
+  const { t } = useTranslation()
   const [showReset, setShowReset] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [toast, setToast] = useState(null)
@@ -168,7 +171,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
       if (dist == null) return
       const nearby = dist <= GPS_RADIUS
       if (nearby && !prevNearby.current.has(m.id)) {
-        setToast({ text: `You've arrived at ${m.title}! Tap to start.`, type: 'arrive' })
+        setToast({ text: t('hub_toast_arrive', { name: m.title }), subText: t('hub_toast_arrive_sub'), type: 'arrive' })
         prevNearby.current.add(m.id)
       } else if (!nearby) {
         prevNearby.current.delete(m.id)
@@ -192,7 +195,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     if (gpsActive && mission.coordinates) {
       const dist = distances[missionId] ?? Infinity
       if (dist > GPS_RADIUS) {
-        setToast({ text: `Walk closer — you're ${formatDistance(dist)} away`, type: 'warn' })
+        setToast({ text: t('hub_toast_warn', { distance: formatDistance(dist) }), type: 'warn' })
         return
       }
     }
@@ -223,7 +226,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             style={{ background: 'rgba(255,255,255,0.1)' }}
           >
             <ArrowLeft className="w-4 h-4 text-white" />
-            <span className="text-white/80 text-xs font-medium">Tours</span>
+            <span className="text-white/80 text-xs font-medium">{t('hub_back_to_tours')}</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -253,7 +256,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
         <div>
           <div className="flex justify-between items-center mb-2">
             <span className="text-white/50 text-xs">
-              {completed} of {missions.length} stops completed
+              {t('hub_progress_of', { completed, total: missions.length })} {t('hub_progress_stops')}
             </span>
             <span className="text-xs font-semibold" style={{ color: tour.accentColor }}>
               {progressPct}%
@@ -287,7 +290,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 text-left">
-              <div className="text-white/60 text-xs">Up next</div>
+              <div className="text-white/60 text-xs">{t('hub_up_next')}</div>
               <div className="text-white font-semibold text-sm">{nextMission.title}</div>
             </div>
             {gpsActive && nextDist != null ? (
@@ -296,7 +299,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                   ? 'bg-green-500/25 text-green-300'
                   : 'bg-amber-500/20 text-amber-300'
               }`}>
-                {nextDist <= GPS_RADIUS ? 'Nearby ✓' : formatDistance(nextDist)}
+                {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
               </span>
             ) : (
               <ChevronRight className="w-5 h-5 text-white/60" />
@@ -338,20 +341,20 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             {gpsActive ? (
               <>
                 <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
-                <span className="text-white/50 text-xs">Live location active</span>
+                <span className="text-white/50 text-xs">{t('hub_gps_active')}</span>
                 {nextMission?.coordinates && nextDist != null && (
                   <span
                     className="ml-auto text-xs font-semibold"
                     style={{ color: nextDist <= GPS_RADIUS ? '#4ade80' : tour.accentColor }}
                   >
-                    Next stop: {nextDist <= GPS_RADIUS ? 'Nearby ✓' : formatDistance(nextDist)}
+                    {t('hub_gps_next_stop')} {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
                   </span>
                 )}
               </>
             ) : (
               <>
                 <MapPin className="w-3 h-3 text-white/25 flex-shrink-0" />
-                <span className="text-white/25 text-xs">Enable GPS for live tracking & stop unlocks</span>
+                <span className="text-white/25 text-xs">{t('hub_gps_inactive')}</span>
               </>
             )}
           </div>
@@ -373,7 +376,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
       {/* ── Mission list ────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-safe">
         <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3 px-1">
-          All Stops
+          {t('hub_all_stops')}
         </div>
         <div className="flex flex-col gap-2.5 stagger-children">
           {missions.map((mission, idx) => (
@@ -436,7 +439,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <div className="text-white/50 text-xs">Next stop</div>
+                <div className="text-white/50 text-xs">{t('hub_gps_next_stop')}</div>
                 <div className="text-white font-semibold text-sm truncate">{nextMission.title}</div>
               </div>
               {gpsActive && nextDist != null ? (
@@ -446,7 +449,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                     ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
                     : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
                 >
-                  {nextDist <= GPS_RADIUS ? 'Nearby ✓' : formatDistance(nextDist)}
+                  {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
                 </span>
               ) : null}
             </div>
@@ -467,10 +470,9 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             style={{ background: '#0d2137', border: '1px solid rgba(255,255,255,0.1)' }}
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-white font-bold text-lg mb-2">Restart this tour?</h3>
+            <h3 className="text-white font-bold text-lg mb-2">{t('hub_reset_confirm_title')}</h3>
             <p className="text-white/50 text-sm mb-6">
-              Progress for <span className="text-white font-medium">{tour.title}</span> will be reset.
-              Your earned lifetime points are kept.
+              {t('hub_reset_confirm_text', { name: tour.title })}
             </p>
             <div className="flex gap-3">
               <button
@@ -478,14 +480,14 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 className="flex-1 py-3.5 rounded-xl font-semibold text-white"
                 style={{ background: 'rgba(255,255,255,0.08)' }}
               >
-                Cancel
+                {t('hub_reset_cancel')}
               </button>
               <button
                 onClick={() => { setShowReset(false); onResetTour() }}
                 className="flex-1 py-3.5 rounded-xl font-semibold text-white"
                 style={{ background: 'linear-gradient(135deg, #dc2626, #b91c1c)' }}
               >
-                Reset Tour
+                {t('hub_reset_button')}
               </button>
             </div>
           </div>
@@ -512,7 +514,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 🗺️
               </div>
               <div>
-                <h3 className="text-white font-bold text-xl leading-tight">How to play</h3>
+                <h3 className="text-white font-bold text-xl leading-tight">{t('hub_rules_heading')}</h3>
                 <p className="text-white/40 text-sm">{tour.title}</p>
               </div>
             </div>
@@ -520,10 +522,10 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             {/* Rules */}
             <div className="space-y-3 mb-6">
               {[
-                { icon: '📍', title: 'Walk to each stop', body: 'GPS unlocks each challenge when you arrive within 50 m. You need to physically be there.' },
-                { icon: '📸', title: 'Complete the challenge', body: 'Take a photo, solve a riddle, or enter a code. Each stop has one challenge.' },
-                { icon: '💡', title: 'Hints cost points', body: 'You can reveal a hint at any time — but it permanently deducts points from that stop\'s score.' },
-                { icon: '⏭️', title: 'Skip only if you must', body: 'Can\'t reach a stop? You can skip it, but you forfeit all its points. This cannot be undone.' },
+                { icon: '📍', title: t('hub_rules_walk'), body: t('hub_rules_walk_body') },
+                { icon: '📸', title: t('hub_rules_challenge'), body: t('hub_rules_challenge_body') },
+                { icon: '💡', title: t('hub_rules_hints'), body: t('hub_rules_hints_body') },
+                { icon: '⏭️', title: t('hub_rules_skip'), body: t('hub_rules_skip_body') },
               ].map(r => (
                 <div key={r.icon} className="flex items-start gap-3">
                   <span className="text-lg flex-shrink-0 mt-0.5">{r.icon}</span>
@@ -544,7 +546,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 boxShadow: `0 4px 20px ${tour.accentColor}33`,
               }}
             >
-              Let's go! 🚀
+              {t('hub_rules_start')}
             </button>
           </div>
         </div>,

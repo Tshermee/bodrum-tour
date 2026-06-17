@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { HelpCircle, CheckCircle2, XCircle, Lightbulb, ChevronDown, ChevronUp, Send } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export default function RiddleChallenge({ challenge, isCompleted, accentColor, gradient, onComplete }) {
+  const { t } = useTranslation()
   const [answer, setAnswer] = useState('')
   const [attempts, setAttempts] = useState(0)
   const [lastWrong, setLastWrong] = useState(false)
@@ -38,7 +40,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
       >
         <CheckCircle2 className="w-8 h-8 text-green-400 flex-shrink-0" />
         <div>
-          <div className="text-green-400 font-semibold">Correct!</div>
+          <div className="text-green-400 font-semibold">{t('riddle_challenge_success')}</div>
           <div className="text-white/50 text-sm capitalize">"{challenge.answer}"</div>
         </div>
       </div>
@@ -82,7 +84,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
           >
             <Lightbulb className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-amber-400 text-sm font-medium flex-1 text-left">
-              {hintUsed ? 'Hint (−20 pts used)' : attempts >= 2 ? 'Hint unlocked after 2 wrong attempts' : 'Need a hint?'}
+              {hintUsed ? t('riddle_challenge_hint_used') : attempts >= 2 ? t('riddle_challenge_hint_warning') : t('riddle_challenge_hint_unused')}
             </span>
             {hintOpen ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
           </button>
@@ -116,7 +118,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
               type="text"
               value={answer}
               onChange={e => { setAnswer(e.target.value); setLastWrong(false) }}
-              placeholder="Your answer..."
+              placeholder={t('riddle_challenge_placeholder')}
               className="flex-1 bg-transparent text-white placeholder-white/25 text-base focus:outline-none"
               autoCapitalize="off"
               autoCorrect="off"
@@ -126,8 +128,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
           </div>
           {lastWrong && (
             <p className="text-red-400/80 text-xs mt-1.5 ml-1 animate-fade-in">
-              Not quite — try again!
-              {attempts >= 2 && ' (Check the hint above)'}
+              {t('riddle_challenge_error')}
             </p>
           )}
         </div>
@@ -142,7 +143,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
           }}
         >
           <Send className="w-4 h-4" />
-          Submit Answer
+          {t('riddle_challenge_submit')}
         </button>
       </form>
 
@@ -169,9 +170,9 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
                 <Lightbulb className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">Use a hint?</h3>
+                <h3 className="text-white font-bold text-lg">{t('hint_warning_title')}</h3>
                 <p className="text-white/50 text-sm mt-0.5">
-                  This will permanently deduct <span className="text-amber-400 font-semibold">20 points</span> from your score for this stop.
+                  {t('hint_warning_deduct')} <span className="text-amber-400 font-semibold">20 {t('hint_warning_from_score')}</span>
                 </p>
               </div>
             </div>
@@ -181,14 +182,14 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
-                Cancel
+                {t('hint_cancel')}
               </button>
               <button
                 onClick={() => { setHintUsed(true); setHintOpen(true); setShowHintWarning(false) }}
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}
               >
-                Reveal Hint (−20 pts)
+                {t('riddle_hint_reveal')}
               </button>
             </div>
           </div>

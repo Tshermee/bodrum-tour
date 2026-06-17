@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Hash, CheckCircle2, XCircle, Lightbulb, ChevronDown, ChevronUp, Send } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 export default function CodeChallenge({ challenge, isCompleted, accentColor, gradient, onComplete }) {
+  const { t } = useTranslation()
   const [code, setCode] = useState('')
   const [attempts, setAttempts] = useState(0)
   const [lastWrong, setLastWrong] = useState(false)
@@ -46,7 +48,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
       >
         <CheckCircle2 className="w-8 h-8 text-green-400 flex-shrink-0" />
         <div>
-          <div className="text-green-400 font-semibold">Code Accepted!</div>
+          <div className="text-green-400 font-semibold">{t('code_challenge_accepted')}</div>
           <div className="text-white/50 text-sm font-mono">{challenge.code}</div>
         </div>
       </div>
@@ -63,7 +65,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
         <div className="flex items-center gap-2 mb-3">
           <Hash className="w-4 h-4" style={{ color: accentColor }} />
           <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: accentColor }}>
-            Enter the Code
+            {t('code_challenge_label')}
           </span>
         </div>
         <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">
@@ -87,7 +89,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
           >
             <Lightbulb className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-amber-400 text-sm font-medium flex-1 text-left">
-              {hintUsed ? 'Hint (−20 pts used)' : attempts >= 2 ? 'Hint unlocked!' : 'Need a hint?'}
+              {hintUsed ? t('code_challenge_hint_used') : attempts >= 2 ? t('code_challenge_hint_warning') : t('code_challenge_hint_unused')}
             </span>
             {hintOpen ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
           </button>
@@ -123,7 +125,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
                 type="text"
                 value={code}
                 onChange={e => { setCode(e.target.value.toUpperCase()); setLastWrong(false) }}
-                placeholder="Enter code..."
+                placeholder={t('code_challenge_placeholder')}
                 className="flex-1 bg-transparent text-white placeholder-white/25 text-lg font-mono font-bold tracking-widest focus:outline-none uppercase"
                 autoCapitalize="characters"
                 autoCorrect="off"
@@ -134,8 +136,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
           </div>
           {lastWrong && (
             <p className="text-red-400/80 text-xs mt-1.5 ml-1 animate-fade-in">
-              Wrong code — try again!
-              {attempts >= 2 && ' Check the hint above.'}
+              {t('code_challenge_error')}
             </p>
           )}
         </div>
@@ -150,7 +151,7 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
           }}
         >
           <Send className="w-4 h-4" />
-          Submit Code
+          {t('code_challenge_submit')}
         </button>
       </form>
 
@@ -177,9 +178,9 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
                 <Lightbulb className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">Use a hint?</h3>
+                <h3 className="text-white font-bold text-lg">{t('hint_warning_title')}</h3>
                 <p className="text-white/50 text-sm mt-0.5">
-                  This will permanently deduct <span className="text-amber-400 font-semibold">20 points</span> from your score for this stop.
+                  {t('hint_warning_deduct')} <span className="text-amber-400 font-semibold">20 {t('hint_warning_from_score')}</span>
                 </p>
               </div>
             </div>
@@ -189,14 +190,14 @@ export default function CodeChallenge({ challenge, isCompleted, accentColor, gra
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
-                Cancel
+                {t('hint_cancel')}
               </button>
               <button
                 onClick={() => { setHintUsed(true); setHintOpen(true); setShowHintWarning(false) }}
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}
               >
-                Reveal Hint (−20 pts)
+                {t('code_hint_reveal')}
               </button>
             </div>
           </div>

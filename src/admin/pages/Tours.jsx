@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { adminFetchTours, adminDeleteTour, adminUpsertTour } from '../../lib/api'
-import { Plus, Edit2, Trash2, MapPin, Eye, EyeOff, Loader2, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
+import { adminFetchTours, adminDeleteTour, adminUpsertTour, adminDuplicateTour } from '../../lib/api'
+import { Plus, Edit2, Trash2, MapPin, Eye, EyeOff, Loader2, ChevronRight, ChevronUp, ChevronDown, Copy } from 'lucide-react'
 
 const DIFF_COLOR = {
   Easy: 'bg-emerald-900/50 text-emerald-400',
@@ -15,6 +15,7 @@ export default function Tours() {
   const [deleting, setDeleting] = useState(null)
   const [toggling, setToggling] = useState(null)
   const [moving, setMoving] = useState(null)
+  const [duplicating, setDuplicating] = useState(null)
   const [toastError, setToastError] = useState('')
 
   useEffect(() => { load() }, [])
@@ -34,6 +35,19 @@ export default function Tours() {
       setTimeout(() => setToastError(''), 5000)
     } finally {
       setToggling(null)
+    }
+  }
+
+  async function handleDuplicate(id) {
+    setDuplicating(id)
+    try {
+      const newTour = await adminDuplicateTour(id)
+      setTours(prev => [...prev, { ...newTour, tour_stops: [{ count: 0 }] }])
+    } catch (err) {
+      setToastError(err.message)
+      setTimeout(() => setToastError(''), 5000)
+    } finally {
+      setDuplicating(null)
     }
   }
 
@@ -175,6 +189,14 @@ export default function Tours() {
                     className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-700 transition-colors">
                     <Edit2 className="w-4 h-4" />
                   </Link>
+
+                  <button onClick={() => handleDuplicate(t.id)} disabled={duplicating === t.id}
+                    title="Duplicate tour"
+                    className="p-2 text-gray-400 hover:text-blue-400 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50">
+                    {duplicating === t.id
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Copy className="w-4 h-4" />}
+                  </button>
 
                   <button onClick={() => handleDelete(t.id)} disabled={deleting === t.id}
                     className="p-2 text-gray-400 hover:text-red-400 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50">

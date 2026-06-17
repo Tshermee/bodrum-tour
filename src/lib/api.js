@@ -56,6 +56,8 @@ export function transformTour(raw) {
     tags: raw.tags || [],
     price: Number(raw.price || 0),
     kidFriendly: raw.kid_friendly || false,
+    bypassGps: raw.bypass_gps || false,
+    previewToken: raw.preview_token || null,
     missions: stops.map(s => transformStop(s, raw)),
   }
 }
@@ -186,6 +188,55 @@ export async function adminUpsertTour(tour) {
 export async function adminDeleteTour(id) {
   const { error } = await supabaseAdmin.from('tours').delete().eq('id', id)
   if (error) throw error
+}
+
+export async function adminDuplicateTour(id) {
+  // Fetch source tour + stops
+  const { data: src, error: fetchErr } = await supabaseAdmin
+    .from('tours')
+    .select('*, tour_stops(*)')
+    .eq('id', id)
+    .single()
+  if (fetchErr) throw fetchErr
+
+  // Build new tour: unpublished, no preview token yet, fresh ID
+  const newId = `${src.id}-copy-${Date.now()}`
+  const { tour_stops, created_at, updated_at, preview_token, sort_order, ...rest } = src
+  const { data: newTour, error: tourErr } = await supabaseAdmin
+    .from('tours')
+    .insert({
+      ...rest,
+      id: newId,
+      name: `${src.name} (Copy)`,
+      published: false,
+      bypass_gps: false,
+      sort_order: (src.sort_order || 0) + 1,
+    })
+    .select()
+    .single()
+  if (tourErr) throw tourErr
+
+  // Duplicate stops
+  if (tour_stops?.length) {
+    const newStops = tour_stops.map(({ id: _id, created_at: _ca, tour_id: _ti, ...stop }) => ({
+      ...stop,
+      tour_id: newTour.id,
+    }))
+    const { error: stopsErr } = await supabaseAdmin.from('tour_stops').insert(newStops)
+    if (stopsErr) throw stopsErr
+  }
+
+  return newTour
+}
+
+export async function fetchTourByPreviewToken(token) {
+  const { data, error } = await supabase
+    .from('tours')
+    .select('*, tour_stops(*)')
+    .eq('preview_token', token)
+    .single()
+  if (error) throw error
+  return transformTour(data)
 }
 
 // ─── Admin: Stops ─────────────────────────────────────────────────────────────

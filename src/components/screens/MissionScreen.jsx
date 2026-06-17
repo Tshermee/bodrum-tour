@@ -24,6 +24,7 @@ export default function MissionScreen({
   missionProgress,
   missionIndex,
   totalMissions,
+  bypassGps = false,
   onComplete,
   onSkip,
   onBack,
@@ -39,10 +40,10 @@ export default function MissionScreen({
   const distToStop = userPos && mission.coordinates
     ? getDistanceMeters(userPos.lat, userPos.lng, mission.coordinates.lat, mission.coordinates.lng)
     : null
-  // Show skip when GPS unavailable, no coords, or within SKIP_RADIUS
-  const canSkip = distToStop === null || distToStop <= SKIP_RADIUS
-  // Allow completing only when GPS unavailable, no coords, or within COMPLETE_RADIUS
-  const canComplete = distToStop === null || distToStop <= COMPLETE_RADIUS
+  // Show skip when GPS unavailable, no coords, within SKIP_RADIUS, or test mode on
+  const canSkip = bypassGps || distToStop === null || distToStop <= SKIP_RADIUS
+  // Allow completing only when GPS unavailable, no coords, within COMPLETE_RADIUS, or test mode on
+  const canComplete = bypassGps || distToStop === null || distToStop <= COMPLETE_RADIUS
 
   function handleConfirmSkip() {
     onSkip(mission.id, skipReason, skipNote)
@@ -60,6 +61,12 @@ export default function MissionScreen({
 
   return (
     <div className="flex flex-col min-h-screen screen-enter">
+      {bypassGps && (
+        <div className="flex items-center justify-center gap-2 py-1.5 text-xs font-semibold"
+          style={{ background: 'rgba(234,179,8,0.15)', borderBottom: '1px solid rgba(234,179,8,0.3)', color: '#fbbf24' }}>
+          🧪 Test mode — GPS check bypassed
+        </div>
+      )}
       {/* Header */}
       <div
         className="relative pt-safe px-4 pb-5 flex-shrink-0"

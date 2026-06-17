@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { adminFetchTours, adminUpsertTour } from '../../lib/api'
-import { Save, ArrowLeft, Loader2 } from 'lucide-react'
+import { Save, ArrowLeft, Loader2, Copy, Check } from 'lucide-react'
 
 const ALL_TAGS = [
   { id: 'history', label: '🏛️ History' },
@@ -19,7 +19,7 @@ const EMPTY = {
   duration_min: '1', duration_max: '2', difficulty: 'Moderate',
   price: 0, max_score: 0,
   gradient_from: '#1e3a8a', gradient_to: '#0e7490', accent_color: '#38bdf8',
-  tags: [], kid_friendly: false, published: true,
+  tags: [], kid_friendly: false, published: true, bypass_gps: false,
 }
 
 function Field({ label, children, hint }) {
@@ -41,6 +41,15 @@ export default function TourEdit() {
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  function copyPreviewLink() {
+    const url = `${window.location.origin}${window.location.pathname.replace('/admin', '')}?preview=${form.preview_token}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   useEffect(() => {
     if (!isNew) {
@@ -173,7 +182,41 @@ export default function TourEdit() {
                 className="w-4 h-4 rounded accent-green-500 flex-shrink-0" />
               <span className="text-gray-300 text-sm">🌐 Published</span>
             </label>
+            <label className="flex items-center gap-2.5 cursor-pointer px-3 py-2.5 rounded-xl transition-colors"
+              style={form.bypass_gps
+                ? { background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)' }
+                : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <input type="checkbox" checked={form.bypass_gps || false} onChange={e => set('bypass_gps', e.target.checked)}
+                className="w-4 h-4 rounded accent-yellow-500 flex-shrink-0" />
+              <span className="text-gray-300 text-sm">🧪 Bypass GPS</span>
+            </label>
           </div>
+
+          {/* Preview link — only shown when editing an existing tour that has a preview token */}
+          {!isNew && form.preview_token && (
+            <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest">Preview link</p>
+              <p className="text-gray-500 text-xs">Share this URL to let testers access this tour even when unpublished.</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs text-gray-300 bg-gray-800 rounded-lg px-3 py-2 truncate">
+                  {`${window.location.origin}${window.location.pathname.replace(/\/admin.*/, '')}?preview=${form.preview_token}`}
+                </code>
+                <button
+                  type="button"
+                  onClick={copyPreviewLink}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
+                  style={copied
+                    ? { background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' }
+                    : { background: 'rgba(255,255,255,0.06)', color: '#9ca3af', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          )}
+          {!isNew && !form.preview_token && (
+            <p className="text-gray-600 text-xs">Save the tour once to generate a preview link.</p>
+          )}
         </div>
 
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-5">

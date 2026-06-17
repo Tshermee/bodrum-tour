@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { ALL_TOURS } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
-import { fetchAllToursForApp, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops, reportSkip } from './lib/api'
+import { fetchAllToursForApp, fetchTourByPreviewToken, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops, reportSkip } from './lib/api'
 import WelcomeScreen from './components/screens/WelcomeScreen'
 import TourSelectScreen from './components/screens/TourSelectScreen'
 import MissionHubScreen from './components/screens/MissionHubScreen'
@@ -45,8 +45,26 @@ export default function App() {
 
   const [tours, setTours] = useState(ALL_TOURS)
   useEffect(() => {
+    const previewToken = new URLSearchParams(window.location.search).get('preview')
+
     fetchAllToursForApp()
-      .then(loaded => { if (loaded.length > 0) setTours(loaded) })
+      .then(async loaded => {
+        if (loaded.length > 0) setTours(loaded)
+        // If a preview token is in the URL, fetch that tour and inject it (even if unpublished)
+        if (previewToken) {
+          try {
+            const previewTour = await fetchTourByPreviewToken(previewToken)
+            setTours(prev => {
+              const exists = prev.some(t => t.id === previewTour.id)
+              return exists
+                ? prev.map(t => t.id === previewTour.id ? previewTour : t)
+                : [...prev, previewTour]
+            })
+          } catch (e) {
+            console.warn('Preview tour not found', e)
+          }
+        }
+      })
       .catch(() => {}) // silently fall back to ALL_TOURS
   }, [])
 
@@ -308,6 +326,7 @@ export default function App() {
             missionProgress={activeTourProgress.missions[activeMissionId]}
             missionIndex={activeTour.missions.findIndex(m => m.id === activeMissionId)}
             totalMissions={activeTour.missions.length}
+            bypassGps={activeTour.bypassGps || false}
             onComplete={handleMissionComplete}
             onSkip={handleSkipMission}
             onBack={handleBackToHub}

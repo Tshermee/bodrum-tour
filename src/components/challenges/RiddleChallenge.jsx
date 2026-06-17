@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { HelpCircle, CheckCircle2, XCircle, Lightbulb, ChevronDown, ChevronUp, Send } from 'lucide-react'
 
 export default function RiddleChallenge({ challenge, isCompleted, accentColor, gradient, onComplete }) {
@@ -7,6 +8,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
   const [lastWrong, setLastWrong] = useState(false)
   const [hintOpen, setHintOpen] = useState(false)
   const [hintUsed, setHintUsed] = useState(false)
+  const [showHintWarning, setShowHintWarning] = useState(false)
   const [shake, setShake] = useState(false)
 
   const normalize = (s) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -71,13 +73,16 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
           style={{ border: '1px solid rgba(251,191,36,0.2)' }}
         >
           <button
-            onClick={() => { if (!hintOpen) setHintUsed(true); setHintOpen(v => !v) }}
+            onClick={() => {
+              if (hintUsed || hintOpen) { setHintOpen(v => !v) }
+              else { setShowHintWarning(true) }
+            }}
             className="w-full flex items-center gap-3 px-4 py-3 active:opacity-80"
             style={{ background: 'rgba(251,191,36,0.08)' }}
           >
             <Lightbulb className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-amber-400 text-sm font-medium flex-1 text-left">
-              {attempts >= 2 ? 'Hint unlocked after 2 wrong attempts' : 'Need a hint?'}
+              {hintUsed ? 'Hint (−20 pts used)' : attempts >= 2 ? 'Hint unlocked after 2 wrong attempts' : 'Need a hint?'}
             </span>
             {hintOpen ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
           </button>
@@ -145,6 +150,50 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
         <p className="text-white/25 text-xs text-center">
           {attempts} attempt{attempts !== 1 ? 's' : ''} · Keep going!
         </p>
+      )}
+
+      {showHintWarning && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowHintWarning(false)}
+        >
+          <div
+            className="w-full max-w-[430px] rounded-t-3xl p-6 pb-safe"
+            style={{ background: '#0d1f35', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)' }}>
+                <Lightbulb className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Use a hint?</h3>
+                <p className="text-white/50 text-sm mt-0.5">
+                  This will permanently deduct <span className="text-amber-400 font-semibold">20 points</span> from your score for this stop.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowHintWarning(false)}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setHintUsed(true); setHintOpen(true); setShowHintWarning(false) }}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
+                style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}
+              >
+                Reveal Hint (−20 pts)
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

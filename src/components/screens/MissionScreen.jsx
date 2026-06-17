@@ -1,6 +1,18 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2 } from 'lucide-react'
+import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2, SkipForward } from 'lucide-react'
+import { useGeolocation } from '../../hooks/useGeolocation'
+import { getDistanceMeters } from '../../lib/geo'
+
+const SKIP_RADIUS = 300 // metres — skip button visible when within this range
+
+const SKIP_REASONS = [
+  { id: 'construction', label: '🚧 Construction / roadwork' },
+  { id: 'accessibility', label: '♿ Accessibility issue' },
+  { id: 'closed', label: '🚫 Location closed' },
+  { id: 'notfound', label: '❓ Can\'t find it' },
+  { id: 'other', label: '✏️ Other' },
+]
 import PhotoChallenge from '../challenges/PhotoChallenge'
 import RiddleChallenge from '../challenges/RiddleChallenge'
 import CodeChallenge from '../challenges/CodeChallenge'
@@ -12,11 +24,27 @@ export default function MissionScreen({
   missionIndex,
   totalMissions,
   onComplete,
+  onSkip,
   onBack,
 }) {
   const [storyExpanded, setStoryExpanded] = useState(false)
   const [showFullMap, setShowFullMap] = useState(false)
+  const [showSkipDialog, setShowSkipDialog] = useState(false)
+  const [skipReason, setSkipReason] = useState('')
+  const [skipNote, setSkipNote] = useState('')
   const isCompleted = missionProgress?.status === 'completed'
+
+  const { position: userPos } = useGeolocation()
+  const distToStop = userPos && mission.coordinates
+    ? getDistanceMeters(userPos.lat, userPos.lng, mission.coordinates.lat, mission.coordinates.lng)
+    : null
+  // Show skip when GPS unavailable, no coords, or within SKIP_RADIUS
+  const canSkip = distToStop === null || distToStop <= SKIP_RADIUS
+
+  function handleConfirmSkip() {
+    onSkip(mission.id, skipReason, skipNote)
+    setShowSkipDialog(false)
+  }
 
   // Opens Google Maps in walking-navigation mode (works on iOS + Android)
   const navUrl = mission.coordinates
@@ -153,7 +181,7 @@ export default function MissionScreen({
         </div>
 
         {/* Challenge area */}
-        <div className="px-4 pb-6 pb-safe">
+        <div className="px-4 pb-4">
           <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3">
             Your Challenge
           </div>
@@ -189,7 +217,100 @@ export default function MissionScreen({
             />
           )}
         </div>
+
+        {/* Skip option — shown only when not completed and within 300 m of stop */}
+        {!isCompleted && canSkip && (
+          <div className="px-4 pb-safe pb-8 flex justify-center">
+            <button
+              onClick={() => { setSkipReason(''); setSkipNote(''); setShowSkipDialog(true) }}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-medium transition-opacity active:opacity-60"
+              style={{ color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+            >
+              <SkipForward className="w-3.5 h-3.5" />
+              Skip this stop
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Skip confirmation dialog */}
+      {showSkipDialog && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowSkipDialog(false)}
+        >
+          <div
+            className="w-full max-w-[430px] rounded-t-3xl p-6 pb-safe animate-slide-up"
+            style={{ background: '#0d1f35', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                <SkipForward className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg leading-tight">Skip this stop?</h3>
+                <p className="text-white/45 text-sm mt-0.5">
+                  No points will be awarded. We'll log a report so we can fix the issue.
+                </p>
+              </div>
+            </div>
+
+            {/* Reason chips */}
+            <div className="mb-5">
+              <div className="text-white/35 text-xs font-semibold tracking-widest uppercase mb-2.5">
+                What's the problem? (optional)
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {SKIP_REASONS.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => setSkipReason(skipReason === r.id ? '' : r.id)}
+                    className="text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
+                    style={skipReason === r.id
+                      ? { background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5' }
+                      : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.55)' }}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              {skipReason === 'other' && (
+                <textarea
+                  value={skipNote}
+                  onChange={e => setSkipNote(e.target.value)}
+                  rows={2}
+                  className="mt-2 w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500/40 placeholder-white/20"
+                  placeholder="Describe the issue…"
+                  autoFocus
+                />
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSkipDialog(false)}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSkip}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white active:scale-[0.98] transition-transform"
+                style={{ background: 'linear-gradient(135deg, #dc2626, #991b1b)' }}
+              >
+                Skip Stop
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Fullscreen map portal (avoids position:fixed issues inside screen-enter transform) */}
       {showFullMap && createPortal(

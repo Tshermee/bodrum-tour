@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Camera, CheckCircle2, RotateCcw, Lightbulb, ChevronDown, ChevronUp, Upload, Download } from 'lucide-react'
 
 async function resizeImage(file, maxDim = 400) {
@@ -22,6 +23,7 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
   const [preview, setPreview] = useState(completedThumb ?? null)
   const [hintOpen, setHintOpen] = useState(false)
   const [hintUsed, setHintUsed] = useState(false)
+  const [showHintWarning, setShowHintWarning] = useState(false)
   const [loading, setLoading] = useState(false)
   const fileRef = useRef(null)
 
@@ -113,12 +115,17 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
           style={{ border: '1px solid rgba(251,191,36,0.2)' }}
         >
           <button
-            onClick={() => { if (!hintOpen) setHintUsed(true); setHintOpen(v => !v) }}
+            onClick={() => {
+              if (hintUsed || hintOpen) { setHintOpen(v => !v) }
+              else { setShowHintWarning(true) }
+            }}
             className="w-full flex items-center gap-3 px-4 py-3 active:opacity-80"
             style={{ background: 'rgba(251,191,36,0.08)' }}
           >
             <Lightbulb className="w-4 h-4 text-amber-400 flex-shrink-0" />
-            <span className="text-amber-400 text-sm font-medium flex-1 text-left">Need a hint?</span>
+            <span className="text-amber-400 text-sm font-medium flex-1 text-left">
+              {hintUsed ? 'Hint (−15 pts used)' : 'Need a hint?'}
+            </span>
             {hintOpen ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
           </button>
           {hintOpen && (
@@ -139,6 +146,50 @@ export default function PhotoChallenge({ challenge, isCompleted, completedThumb,
         onChange={handleFileChange}
         className="hidden"
       />
+
+      {showHintWarning && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setShowHintWarning(false)}
+        >
+          <div
+            className="w-full max-w-[430px] rounded-t-3xl p-6 pb-safe"
+            style={{ background: '#0d1f35', border: '1px solid rgba(255,255,255,0.1)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)' }}>
+                <Lightbulb className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Use a hint?</h3>
+                <p className="text-white/50 text-sm mt-0.5">
+                  This will permanently deduct <span className="text-amber-400 font-semibold">15 points</span> from your score for this stop.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowHintWarning(false)}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
+                style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setHintUsed(true); setHintOpen(true); setShowHintWarning(false) }}
+                className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
+                style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}
+              >
+                Reveal Hint (−15 pts)
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {preview ? (
         <div className="space-y-3">

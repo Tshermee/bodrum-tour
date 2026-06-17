@@ -128,7 +128,16 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   const [showReset, setShowReset] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [toast, setToast] = useState(null)
+  const [showRules, setShowRules] = useState(false)
   const prevNearby = useRef(new Set())
+
+  // Show rules the first time a user enters a new tour
+  useEffect(() => {
+    const key = `bodrum-rules-seen-${tour.id}`
+    if (!localStorage.getItem(key)) {
+      setShowRules(true)
+    }
+  }, [tour.id])
 
   const { position: userPos } = useGeolocation()
 
@@ -481,6 +490,64 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Game rules dialog ───────────────────────────────── */}
+      {showRules && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center"
+          style={{ background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(6px)' }}
+        >
+          <div
+            className="w-full max-w-[430px] rounded-t-3xl p-6 pb-safe animate-slide-up"
+            style={{ background: '#0a1929', border: '1px solid rgba(255,255,255,0.1)' }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-5">
+              <div
+                className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                style={{ background: `linear-gradient(135deg, ${tour.gradient[0]}, ${tour.gradient[1]})` }}
+              >
+                🗺️
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-xl leading-tight">How to play</h3>
+                <p className="text-white/40 text-sm">{tour.title}</p>
+              </div>
+            </div>
+
+            {/* Rules */}
+            <div className="space-y-3 mb-6">
+              {[
+                { icon: '📍', title: 'Walk to each stop', body: 'GPS unlocks each challenge when you arrive within 50 m. You need to physically be there.' },
+                { icon: '📸', title: 'Complete the challenge', body: 'Take a photo, solve a riddle, or enter a code. Each stop has one challenge.' },
+                { icon: '💡', title: 'Hints cost points', body: 'You can reveal a hint at any time — but it permanently deducts points from that stop\'s score.' },
+                { icon: '⏭️', title: 'Skip only if you must', body: 'Can\'t reach a stop? You can skip it, but you forfeit all its points. This cannot be undone.' },
+              ].map(r => (
+                <div key={r.icon} className="flex items-start gap-3">
+                  <span className="text-lg flex-shrink-0 mt-0.5">{r.icon}</span>
+                  <div>
+                    <div className="text-white font-semibold text-sm">{r.title}</div>
+                    <div className="text-white/45 text-xs leading-relaxed mt-0.5">{r.body}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { localStorage.setItem(`bodrum-rules-seen-${tour.id}`, '1'); setShowRules(false) }}
+              className="w-full py-4 rounded-xl font-bold text-base active:scale-[0.98] transition-transform"
+              style={{
+                background: `linear-gradient(135deg, ${tour.gradient[0]}, ${tour.gradient[1]})`,
+                color: '#fff',
+                boxShadow: `0 4px 20px ${tour.accentColor}33`,
+              }}
+            >
+              Let's go! 🚀
+            </button>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   )

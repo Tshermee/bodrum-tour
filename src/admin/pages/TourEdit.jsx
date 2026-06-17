@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { adminFetchTours, adminUpsertTour } from '../../lib/api'
-import { Save, ArrowLeft, Loader2, Copy, Check } from 'lucide-react'
+import { Save, ArrowLeft, Loader2, Copy, Check, MapPin } from 'lucide-react'
 
 const ALL_TAGS = [
   { id: 'history', label: '🏛️ History' },
@@ -192,11 +192,11 @@ export default function TourEdit() {
             </label>
           </div>
 
-          {/* Preview link — only shown when editing an existing tour that has a preview token */}
-          {!isNew && form.preview_token && (
-            <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest">Preview link</p>
-              <p className="text-gray-500 text-xs">Share this URL to let testers access this tour even when unpublished.</p>
+          {/* Test link */}
+          <div className="rounded-xl p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest">Test link</p>
+            <p className="text-gray-500 text-xs">Share this URL to let testers access this tour even when unpublished.</p>
+            {!isNew && form.preview_token ? (
               <div className="flex items-center gap-2">
                 <code className="flex-1 text-xs text-gray-300 bg-gray-800 rounded-lg px-3 py-2 truncate">
                   {`${window.location.origin}${window.location.pathname.replace(/\/admin.*/, '')}?preview=${form.preview_token}`}
@@ -212,11 +212,10 @@ export default function TourEdit() {
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-            </div>
-          )}
-          {!isNew && !form.preview_token && (
-            <p className="text-gray-600 text-xs">Save the tour once to generate a preview link.</p>
-          )}
+            ) : (
+              <p className="text-gray-600 text-xs italic">Save the tour first to generate a test link.</p>
+            )}
+          </div>
         </div>
 
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-5">
@@ -242,16 +241,28 @@ export default function TourEdit() {
 
         {error && <div className="bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">{error}</div>}
 
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => navigate('/tours')}
-            className="px-5 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 text-sm font-medium transition-colors">
-            Cancel
-          </button>
-          <button type="submit" disabled={saving}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? 'Saving…' : 'Save Tour'}
-          </button>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            {!isNew && (
+              <button type="button" onClick={() => navigate(`/tours/${id}/stops`)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-colors text-gray-300 hover:text-white"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <MapPin className="w-4 h-4" />
+                Edit Stops
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => navigate('/tours')}
+              className="px-5 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 text-sm font-medium transition-colors">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? 'Saving…' : 'Save Tour'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

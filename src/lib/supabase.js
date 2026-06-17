@@ -2,12 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Service-role client: bypasses RLS for all admin writes (storage, inserts, etc.)
-// Falls back to anon client if the key isn't in the build env (e.g. missing GitHub secret).
-export const supabaseAdmin = supabaseServiceKey
-  ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
-  : supabase
+// Admin operations use the same client — RLS policies gate access by
+// auth.role() = 'authenticated' (admin session) or explicit anon INSERT grants.
+// The service role key must never be bundled into the frontend.
+export const supabaseAdmin = supabase

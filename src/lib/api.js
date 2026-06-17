@@ -211,6 +211,7 @@ export async function adminDuplicateTour(id) {
       published: false,
       bypass_gps: false,
       sort_order: (src.sort_order || 0) + 1,
+      preview_token: crypto.randomUUID(),
     })
     .select()
     .single()

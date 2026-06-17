@@ -298,6 +298,20 @@ export async function adminFetchStopDropoff(tourId) {
   return data
 }
 
+export async function adminFetchLiveProgress() {
+  const { data, error } = await supabaseAdmin
+    .from('tour_progress')
+    .select(`
+      id, team_name, tour_id, created_at, completed_at, total_score,
+      tours ( name, tour_stops ( count ) ),
+      stop_progress ( count )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(200)
+  if (error) throw error
+  return data ?? []
+}
+
 // ─── Skip Reports ─────────────────────────────────────────────────────────────
 
 export async function reportSkip({ tourId, stopOrder, stopName, teamName, reason, note }) {

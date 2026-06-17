@@ -4,7 +4,8 @@ import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maxi
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters } from '../../lib/geo'
 
-const SKIP_RADIUS = 300 // metres — skip button visible when within this range
+const SKIP_RADIUS = 300      // metres — skip button visible when within this range
+const COMPLETE_RADIUS = 300  // metres — challenge locked when farther than this
 
 const SKIP_REASONS = [
   { id: 'construction', label: '🚧 Construction / roadwork' },
@@ -40,6 +41,8 @@ export default function MissionScreen({
     : null
   // Show skip when GPS unavailable, no coords, or within SKIP_RADIUS
   const canSkip = distToStop === null || distToStop <= SKIP_RADIUS
+  // Allow completing only when GPS unavailable, no coords, or within COMPLETE_RADIUS
+  const canComplete = distToStop === null || distToStop <= COMPLETE_RADIUS
 
   function handleConfirmSkip() {
     onSkip(mission.id, skipReason, skipNote)
@@ -52,7 +55,7 @@ export default function MissionScreen({
     : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mission.mapsQuery)}&travelmode=walking`
 
   const handleComplete = (photoThumb = null, penalty = 0) => {
-    if (!isCompleted) onComplete(mission.id, photoThumb, penalty)
+    if (!isCompleted && canComplete) onComplete(mission.id, photoThumb, penalty)
   }
 
   return (
@@ -186,7 +189,20 @@ export default function MissionScreen({
             Your Challenge
           </div>
 
-          {mission.challenge.type === 'photo' && (
+          {!isCompleted && !canComplete && (
+            <div
+              className="rounded-2xl p-5 flex flex-col items-center gap-3 text-center"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <div className="text-3xl">📍</div>
+              <p className="text-white/70 text-sm font-medium">You need to be at the location to complete this challenge.</p>
+              <p className="text-white/35 text-xs">
+                {distToStop != null ? `${Math.round(distToStop)} m away` : 'GPS locating…'}
+              </p>
+            </div>
+          )}
+
+          {(isCompleted || canComplete) && mission.challenge.type === 'photo' && (
             <PhotoChallenge
               challenge={mission.challenge}
               isCompleted={isCompleted}
@@ -197,7 +213,7 @@ export default function MissionScreen({
             />
           )}
 
-          {mission.challenge.type === 'riddle' && (
+          {(isCompleted || canComplete) && mission.challenge.type === 'riddle' && (
             <RiddleChallenge
               challenge={mission.challenge}
               isCompleted={isCompleted}
@@ -207,7 +223,7 @@ export default function MissionScreen({
             />
           )}
 
-          {mission.challenge.type === 'code' && (
+          {(isCompleted || canComplete) && mission.challenge.type === 'code' && (
             <CodeChallenge
               challenge={mission.challenge}
               isCompleted={isCompleted}

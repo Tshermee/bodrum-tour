@@ -20,10 +20,11 @@ function buildDefaultMissions(tour) {
 // Cache: tourId → { progressId, stopMap: { orderIndex → stopUUID } }
 const supabaseCache = {}
 
-async function initSupabaseTour(tourId, purchaseId, teamName) {
+async function initSupabaseTour(tourId, teamName, purchaseId) {
   try {
+    const deviceId = getDeviceId()
     const [progress, stopsData] = await Promise.all([
-      upsertTourProgress({ purchaseId, tourId, teamName }),
+      upsertTourProgress({ purchaseId: purchaseId ?? null, tourId, teamName, deviceId }),
       fetchTourWithStops(tourId),
     ])
     const stopMap = {}
@@ -128,10 +129,9 @@ export default function App() {
       }
     })
     setScreen('hub')
-    // Sync to Supabase in background
-    const pid = purchaseIdRef.current[tourId]
-    if (pid && teamName) {
-      initSupabaseTour(tourId, pid, teamName)
+    // Always sync to Supabase — device_id is the unique key so re-selecting is idempotent
+    if (teamName) {
+      initSupabaseTour(tourId, teamName, purchaseIdRef.current[tourId])
     }
   }, [tours, setSelectedTourId, setAllProgress, teamName])
 

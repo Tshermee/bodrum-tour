@@ -128,12 +128,13 @@ export async function checkPurchase(tourId, deviceId) {
 
 // ─── Progress ─────────────────────────────────────────────────────────────────
 
-export async function upsertTourProgress({ purchaseId, tourId, teamName }) {
+export async function upsertTourProgress({ purchaseId, tourId, teamName, deviceId }) {
   const { data, error } = await supabase
     .from('tour_progress')
-    .upsert({ purchase_id: purchaseId, tour_id: tourId, team_name: teamName }, {
-      onConflict: 'purchase_id',
-    })
+    .upsert(
+      { purchase_id: purchaseId ?? null, tour_id: tourId, team_name: teamName, device_id: deviceId },
+      { onConflict: 'tour_id,device_id', ignoreDuplicates: false }
+    )
     .select()
     .single()
   if (error) throw error

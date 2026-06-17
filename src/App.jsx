@@ -43,6 +43,8 @@ export default function App() {
   const [lifetimePoints, setLifetimePoints] = useLocalStorage('bodrum-lifetime-pts', 0)
   const [redeemedRewards, setRedeemedRewards] = useLocalStorage('bodrum-redeemed', [])
 
+  const isPreviewMode = useRef(false)
+
   const [tours, setTours] = useState(ALL_TOURS)
   useEffect(() => {
     const previewToken = new URLSearchParams(window.location.search).get('preview')
@@ -50,16 +52,33 @@ export default function App() {
     fetchAllToursForApp()
       .then(async loaded => {
         if (loaded.length > 0) setTours(loaded)
-        // If a preview token is in the URL, fetch that tour and inject it (even if unpublished)
         if (previewToken) {
           try {
             const previewTour = await fetchTourByPreviewToken(previewToken)
+            isPreviewMode.current = true
             setTours(prev => {
               const exists = prev.some(t => t.id === previewTour.id)
               return exists
                 ? prev.map(t => t.id === previewTour.id ? previewTour : t)
                 : [...prev, previewTour]
             })
+            // Auto-grant access and select the tour
+            setPurchases(prev => ({ ...prev, [previewTour.id]: true }))
+            setSelectedTourId(previewTour.id)
+            setAllProgress(prev => {
+              if (prev[previewTour.id]) return prev
+              return {
+                ...prev,
+                [previewTour.id]: {
+                  startTime: new Date().toISOString(),
+                  missions: buildDefaultMissions(previewTour),
+                  totalScore: 0,
+                  completedAt: null,
+                },
+              }
+            })
+            // Skip straight to hub if we already have a name
+            if (teamName) setScreen('hub')
           } catch (e) {
             console.warn('Preview tour not found', e)
           }
@@ -89,7 +108,7 @@ export default function App() {
 
   const handleStartTeam = useCallback((name) => {
     setTeamName(name)
-    setScreen('tourSelect')
+    setScreen(isPreviewMode.current ? 'hub' : 'tourSelect')
   }, [setTeamName])
 
   const handleSelectTour = useCallback((tourId) => {

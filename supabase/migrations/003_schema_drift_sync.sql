@@ -9,7 +9,9 @@
 -- file is safe to run against the existing, already-drifted database too.
 -- ============================================================
 
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- NB: use gen_random_uuid() (Postgres core, pg_catalog) rather than
+-- uuid_generate_v4() — the uuid-ossp extension lives in the `extensions`
+-- schema on Supabase and is not on the search_path during `supabase db push`.
 
 -- ── tours: extra columns the admin + preview flows rely on ────
 --   bypass_gps    — per-tour GPS gating toggle (TourEdit, transformTour)
@@ -17,10 +19,10 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 --   preview_token — shareable preview link for unpublished tours
 ALTER TABLE tours ADD COLUMN IF NOT EXISTS bypass_gps    BOOLEAN DEFAULT false;
 ALTER TABLE tours ADD COLUMN IF NOT EXISTS sort_order    INTEGER DEFAULT 0;
-ALTER TABLE tours ADD COLUMN IF NOT EXISTS preview_token UUID DEFAULT uuid_generate_v4();
+ALTER TABLE tours ADD COLUMN IF NOT EXISTS preview_token UUID DEFAULT gen_random_uuid();
 
 -- Backfill preview tokens for any tour rows that predate the column.
-UPDATE tours SET preview_token = uuid_generate_v4() WHERE preview_token IS NULL;
+UPDATE tours SET preview_token = gen_random_uuid() WHERE preview_token IS NULL;
 
 -- ── tour_progress: per-device identity ────────────────────────
 --   device_id powers idempotent progress sync. upsertTourProgress() uses
@@ -32,7 +34,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS tour_progress_tour_device_uniq
 
 -- ── skip_reports: stop-skip feedback (entirely new table) ─────
 CREATE TABLE IF NOT EXISTS skip_reports (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tour_id TEXT REFERENCES tours(id) ON DELETE CASCADE,
   stop_order INTEGER,
   stop_name TEXT,

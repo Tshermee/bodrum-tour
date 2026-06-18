@@ -52,7 +52,11 @@ function MapController({ positions }) {
         }
       }
     }
-    return () => { map.stop() }
+    return () => {
+      try {
+        if (map.getContainer()?.isConnected) map.stop()
+      } catch (_) {}
+    }
   }, [map]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null

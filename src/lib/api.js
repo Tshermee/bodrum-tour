@@ -303,11 +303,11 @@ export async function adminFetchLiveProgress() {
   const { data, error } = await supabaseAdmin
     .from('tour_progress')
     .select(`
-      id, team_name, tour_id, created_at, completed_at, total_score,
+      id, team_name, tour_id, created_at:started_at, completed_at, total_score,
       tours ( name, tour_stops ( count ) ),
       stop_progress ( count )
     `)
-    .order('created_at', { ascending: false })
+    .order('started_at', { ascending: false })
     .limit(200)
   if (error) throw error
   return data ?? []

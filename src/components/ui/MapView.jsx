@@ -77,9 +77,9 @@ function MapController({ positions }) {
       if (!fitted.current && positions.length > 0) {
         fitted.current = true
         if (positions.length === 1) {
-          map.setView(positions[0], 15)
+          map.setView(positions[0], 15, { animate: false })
         } else {
-          map.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15 })
+          map.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15, animate: false })
         }
       }
     } catch (err) {
@@ -87,7 +87,7 @@ function MapController({ positions }) {
       // to a plain centered view and move on.
       console.warn('[MapView] map setup failed, using fallback view', err)
       try {
-        if (mapIsAlive(map) && positions.length > 0) map.setView(positions[0], 14)
+        if (mapIsAlive(map) && positions.length > 0) map.setView(positions[0], 14, { animate: false })
       } catch (_) {}
     }
 
@@ -182,6 +182,8 @@ export default function MapView({
           doubleClickZoom={false}
           keyboard={false}
           attributionControl={false}
+          zoomAnimation={false}
+          markerZoomAnimation={false}
         >
           <TileLayer url={TILE_URL} />
           <MapController positions={positions} />

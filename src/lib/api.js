@@ -346,6 +346,18 @@ export async function uploadStopPhoto(file, stopId) {
   return data.publicUrl
 }
 
+// Deletes a previously uploaded object from the tour-media bucket, given its
+// public URL. No-op for empty/foreign URLs.
+export async function deleteStopPhoto(photoUrl) {
+  if (!photoUrl) return
+  const marker = '/tour-media/'
+  const idx = photoUrl.indexOf(marker)
+  if (idx === -1) return // not a tour-media URL — nothing to remove
+  const path = decodeURIComponent(photoUrl.slice(idx + marker.length))
+  const { error } = await supabaseAdmin.storage.from('tour-media').remove([path])
+  if (error) throw error
+}
+
 export async function uploadUserPhoto(file, progressId, stopId) {
   const ext = file.name.split('.').pop()
   const path = `user-submissions/${progressId}/${stopId}.${ext}`

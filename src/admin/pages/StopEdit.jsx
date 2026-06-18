@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { adminFetchStops, adminUpsertStop, uploadStopPhoto } from '../../lib/api'
-import { Save, ArrowLeft, Loader2, Upload, X, MapPin, ExternalLink } from 'lucide-react'
+import { adminFetchStops, adminUpsertStop, uploadStopPhoto, deleteStopPhoto } from '../../lib/api'
+import { Save, ArrowLeft, Loader2, Upload, Trash2, MapPin, ExternalLink } from 'lucide-react'
 import MapView from '../../components/ui/MapView'
 
 const EMPTY = {
@@ -83,6 +83,7 @@ export default function StopEdit() {
   const [locInput, setLocInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(null)
   const fileRef = useRef()
@@ -128,6 +129,21 @@ export default function StopEdit() {
       setError('Photo upload failed: ' + err.message)
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function handleDeletePhoto() {
+    setError('')
+    setDeleting(true)
+    try {
+      await deleteStopPhoto(form.photo_url)
+      set('photo_url', '')
+      setPreview(null)
+      if (fileRef.current) fileRef.current.value = ''
+    } catch (err) {
+      setError('Could not delete photo: ' + err.message)
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -201,22 +217,23 @@ export default function StopEdit() {
               {preview ? (
                 <>
                   <img src={preview} alt="" className="w-full h-full object-cover" />
-                  {uploading && (
+                  {(uploading || deleting) && (
                     <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                       <Loader2 className="w-6 h-6 text-white animate-spin" />
                     </div>
                   )}
-                  {!uploading && (
+                  {!uploading && !deleting && (
                     <div className="absolute bottom-2 right-2 flex gap-1.5">
                       <button type="button" onClick={() => fileRef.current?.click()}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white transition-colors"
                         style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
                         <Upload className="w-3 h-3" /> Replace
                       </button>
-                      <button type="button" onClick={() => { setPreview(null); set('photo_url', '') }}
-                        className="p-1 rounded-lg text-red-400 transition-colors"
+                      <button type="button" onClick={handleDeletePhoto}
+                        title="Delete photo"
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-red-300 transition-colors"
                         style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-                        <X className="w-3 h-3" />
+                        <Trash2 className="w-3 h-3" /> Delete
                       </button>
                     </div>
                   )}
@@ -351,7 +368,7 @@ export default function StopEdit() {
             className="px-5 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 text-sm font-medium transition-colors">
             Cancel
           </button>
-          <button type="submit" disabled={saving || uploading}
+          <button type="submit" disabled={saving || uploading || deleting}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? 'Saving…' : 'Save Stop'}

@@ -1,9 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
+import 'leaflet-rotate' // patches L.Map with rotate/touchRotate options (no-op unless enabled)
+import { Sun, Moon } from 'lucide-react'
 import ErrorBoundary from '../ErrorBoundary'
+import { useMapTheme } from '../../hooks/useMapTheme'
 
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+// CartoDB basemaps — dark for low light, light (Positron) for bright sunlight.
+const TILE_URLS = {
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  light: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+}
 
 // A valid lat/lng must be a finite number in range. Note: 0 is valid
 // (equator / prime meridian), so never rely on truthiness for coordinates.
@@ -65,7 +72,7 @@ function mapIsAlive(map) {
 
 // Fits bounds once on mount, stops any animation on unmount to prevent
 // Leaflet's _leaflet_pos crash when the container is removed mid-animation.
-function MapController({ positions }) {
+function MapController({ fitPositions }) {
   const map = useMap()
   const fitted = useRef(false)
 
@@ -74,20 +81,18 @@ function MapController({ positions }) {
 
     try {
       map.invalidateSize()
-      if (!fitted.current && positions.length > 0) {
+      if (!fitted.current && fitPositions.length > 0) {
         fitted.current = true
-        if (positions.length === 1) {
-          map.setView(positions[0], 15, { animate: false })
+        if (fitPositions.length === 1) {
+          map.setView(fitPositions[0], 15, { animate: false })
         } else {
-          map.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15, animate: false })
+          map.fitBounds(L.latLngBounds(fitPositions), { padding: [28, 28], maxZoom: 16, animate: false })
         }
       }
     } catch (err) {
-      // A bad fitBounds / invalidateSize should never crash the app — fall back
-      // to a plain centered view and move on.
       console.warn('[MapView] map setup failed, using fallback view', err)
       try {
-        if (mapIsAlive(map) && positions.length > 0) map.setView(positions[0], 14, { animate: false })
+        if (mapIsAlive(map) && fitPositions.length > 0) map.setView(fitPositions[0], 14, { animate: false })
       } catch (_) {}
     }
 
@@ -106,17 +111,11 @@ function MapFallback({ height }) {
   return (
     <div
       style={{
-        height,
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '6px',
-        background: '#0b2447',
-        color: 'rgba(226,232,240,0.7)',
-        fontSize: '13px',
-        fontFamily: 'Inter, system-ui, sans-serif',
+        height, width: '100%',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: '6px',
+        background: '#0b2447', color: 'rgba(226,232,240,0.7)',
+        fontSize: '13px', fontFamily: 'Inter, system-ui, sans-serif',
         borderRadius: 'inherit',
       }}
     >
@@ -133,11 +132,14 @@ function MapFallback({ height }) {
  *   missions        — array of mission objects (must have .coordinates {lat,lng})
  *   missionProgress — object keyed by mission.id → {status} (optional, for color-coding)
  *   height          — CSS height in px (default 180)
- *   interactive     — allow drag/zoom (default false)
+ *   interactive     — allow drag/zoom + pinch-rotate (default false)
  *   accentColor     — hex color for route line + unlocked markers
  *   singleMode      — show single emoji pin instead of numbered markers
  *   userPosition    — { lat, lng } | null — live GPS dot
  *   routePoints     — [[lat,lng], ...] | null — walking route polyline (e.g. from OSRM)
+ *   extraFitPoints  — [[lat,lng], ...] — extra points to include when framing the map
+ *                     (e.g. the user position, so a single-stop leg map frames both)
+ *   showThemeToggle — render the light/dark toggle button (defaults to `interactive`)
  */
 export default function MapView({
   missions,
@@ -148,7 +150,11 @@ export default function MapView({
   singleMode = false,
   userPosition = null,
   routePoints = null,
+  extraFitPoints = null,
+  showThemeToggle,
 }) {
+  const { theme, toggle } = useMapTheme()
+
   // Defensively normalize every input — bad data is the most common crash source.
   const valid = Array.isArray(missions)
     ? missions.filter(m => m && isValidLatLng(Number(m.coordinates?.lat), Number(m.coordinates?.lng)))
@@ -157,22 +163,26 @@ export default function MapView({
 
   const positions = valid.map(m => [Number(m.coordinates.lat), Number(m.coordinates.lng)])
 
-  // Only keep route points that are valid coordinate pairs.
   const safeRoute = Array.isArray(routePoints)
-    ? routePoints
-        .map(p => (Array.isArray(p) ? toLatLng(p[0], p[1]) : null))
-        .filter(Boolean)
+    ? routePoints.map(p => (Array.isArray(p) ? toLatLng(p[0], p[1]) : null)).filter(Boolean)
     : null
 
-  const userLatLng = userPosition
-    ? toLatLng(userPosition.lat, userPosition.lng)
-    : null
+  const userLatLng = userPosition ? toLatLng(userPosition.lat, userPosition.lng) : null
+
+  const safeExtra = Array.isArray(extraFitPoints)
+    ? extraFitPoints.map(p => (Array.isArray(p) ? toLatLng(p[0], p[1]) : null)).filter(Boolean)
+    : []
+
+  // Frame the map around the stops plus any extra points (e.g. the user).
+  const fitPositions = [...positions, ...safeExtra]
+
+  const enableToggle = showThemeToggle ?? interactive
 
   return (
-    <div style={{ height, width: '100%', overflow: 'hidden', borderRadius: 'inherit' }}>
+    <div style={{ position: 'relative', height, width: '100%', overflow: 'hidden', borderRadius: 'inherit' }}>
       <ErrorBoundary label="MapView" fallback={<MapFallback height={height} />}>
         <MapContainer
-          center={positions[0]}
+          center={fitPositions[0]}
           zoom={14}
           style={{ height: '100%', width: '100%' }}
           zoomControl={interactive}
@@ -184,29 +194,23 @@ export default function MapView({
           attributionControl={false}
           zoomAnimation={false}
           markerZoomAnimation={false}
+          rotate={interactive}
+          touchRotate={interactive}
+          rotateControl={false}
+          bearing={0}
         >
-          <TileLayer url={TILE_URL} />
-          <MapController positions={positions} />
+          {/* key forces a clean layer swap when the theme flips */}
+          <TileLayer key={theme} url={TILE_URLS[theme] ?? TILE_URLS.dark} />
+          <MapController fitPositions={fitPositions} />
 
           {/* Stop-to-stop route line */}
           {valid.length > 1 && (
-            <Polyline
-              positions={positions}
-              color={accentColor}
-              weight={2.5}
-              dashArray="7 5"
-              opacity={0.6}
-            />
+            <Polyline positions={positions} color={accentColor} weight={2.5} dashArray="7 5" opacity={0.6} />
           )}
 
           {/* Walking route (OSRM geometry or straight-line fallback) */}
           {safeRoute && safeRoute.length > 1 && (
-            <Polyline
-              positions={safeRoute}
-              color="#3b82f6"
-              weight={3.5}
-              opacity={0.9}
-            />
+            <Polyline positions={safeRoute} color="#3b82f6" weight={3.5} opacity={0.9} />
           )}
 
           {/* Stop markers */}
@@ -216,15 +220,10 @@ export default function MapView({
               : 'unlocked'
 
             let bg
-            if (singleMode) {
-              bg = accentColor
-            } else if (status === 'completed') {
-              bg = '#22c55e'
-            } else if (status === 'unlocked') {
-              bg = accentColor
-            } else {
-              bg = '#374151'
-            }
+            if (singleMode) bg = accentColor
+            else if (status === 'completed') bg = '#22c55e'
+            else if (status === 'unlocked') bg = accentColor
+            else bg = '#374151'
 
             const label = singleMode ? mission.emoji ?? '📍' : String(idx + 1)
             const size = singleMode ? 36 : 26
@@ -239,13 +238,28 @@ export default function MapView({
           })}
 
           {/* Live GPS dot */}
-          {userLatLng && (
-            <Marker
-              position={userLatLng}
-              icon={makeUserIcon()}
-            />
-          )}
+          {userLatLng && <Marker position={userLatLng} icon={makeUserIcon()} />}
         </MapContainer>
+
+        {/* Light/dark toggle */}
+        {enableToggle && (
+          <button
+            onClick={toggle}
+            aria-label="Toggle map brightness"
+            style={{
+              position: 'absolute', left: '8px', bottom: '8px', zIndex: 500,
+              width: '34px', height: '34px', borderRadius: '9px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: 'none', cursor: 'pointer',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.85)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            }}
+          >
+            {theme === 'dark'
+              ? <Sun className="w-4 h-4" style={{ color: '#0f172a' }} />
+              : <Moon className="w-4 h-4" style={{ color: '#f8fafc' }} />}
+          </button>
+        )}
       </ErrorBoundary>
     </div>
   )

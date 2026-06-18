@@ -12,6 +12,41 @@ import { getDistanceMeters, formatDistance } from '../../lib/geo'
 
 const GPS_RADIUS = 50 // metres
 
+// Slim, "minimized" row for stops that are done or skipped — keeps the screen
+// focused on directing the player to the next stop.
+function CompactMissionCard({ mission, progress, index, onOpen }) {
+  const { t } = useTranslation()
+  const isSkipped = !!progress?.skipped
+  return (
+    <button
+      onClick={() => onOpen(mission.id)}
+      className="w-full text-left rounded-xl px-3 py-2 flex items-center gap-3 active:scale-[0.99] transition-transform"
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', opacity: isSkipped ? 0.7 : 0.9 }}
+    >
+      <div
+        className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+        style={{ background: isSkipped ? 'rgba(245,158,11,0.12)' : 'rgba(34,197,94,0.15)' }}
+      >
+        {isSkipped
+          ? <SkipForward className="w-3.5 h-3.5 text-amber-500/70" />
+          : <CheckCircle2 className="w-4 h-4 text-green-400" />}
+      </div>
+      <div className="flex-1 min-w-0 flex items-baseline gap-2">
+        <span className="text-white/30 text-[10px] font-semibold tracking-wider flex-shrink-0">{index + 1}</span>
+        <span className="text-white/70 text-sm truncate">{mission.title}</span>
+      </div>
+      {isSkipped ? (
+        <span className="text-amber-500/60 text-xs font-medium flex-shrink-0">{t('hub_stop_skipped')}</span>
+      ) : (
+        <span className="flex items-center gap-1 flex-shrink-0">
+          <Star className="w-3 h-3 text-amber-400/80 fill-amber-400/80" />
+          <span className="text-amber-400/80 text-xs font-bold">{progress.score}</span>
+        </span>
+      )}
+    </button>
+  )
+}
+
 function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) {
   const { t } = useTranslation()
   const status = progress?.status ?? 'locked'
@@ -308,22 +343,47 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
         )}
       </div>
 
-      {/* ── GPS Live Map ────────────────────────────────────── */}
+      {/* ── Current-leg map (you → next stop) ───────────────── */}
       <div className="flex-shrink-0 mx-4 mt-3">
         <div
           className="rounded-2xl overflow-hidden"
           style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          {/* Map + expand button */}
+          {/* Leg label */}
+          {nextMission && (
+            <div
+              className="flex items-center gap-2 px-3 py-2"
+              style={{ background: 'rgba(6,15,30,0.85)' }}
+            >
+              <Navigation2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tour.accentColor }} />
+              <span className="text-white/70 text-xs font-semibold truncate">
+                {t('hub_up_next')}: {nextMission.title}
+              </span>
+              {gpsActive && nextDist != null && (
+                <span
+                  className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                  style={nextDist <= GPS_RADIUS
+                    ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
+                    : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
+                >
+                  {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Map + expand button — leg view when navigating, full overview when done */}
           <div className="relative">
             <MapView
-              missions={missions}
+              missions={nextMission ? [nextMission] : missions}
               missionProgress={tourProgress.missions}
-              height={190}
+              height={nextMission ? 240 : 190}
               interactive={true}
               accentColor={tour.accentColor}
+              singleMode={!!nextMission}
               userPosition={userPos}
               routePoints={routePoints}
+              extraFitPoints={nextMission && userPos ? [[userPos.lat, userPos.lng]] : null}
             />
             <button
               onClick={() => setFullscreen(true)}
@@ -333,6 +393,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               <Maximize2 className="w-4 h-4 text-white" />
             </button>
           </div>
+
           {/* GPS status bar */}
           <div
             className="flex items-center gap-2 px-3 py-2"
@@ -342,14 +403,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               <>
                 <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
                 <span className="text-white/50 text-xs">{t('hub_gps_active')}</span>
-                {nextMission?.coordinates && nextDist != null && (
-                  <span
-                    className="ml-auto text-xs font-semibold"
-                    style={{ color: nextDist <= GPS_RADIUS ? '#4ade80' : tour.accentColor }}
-                  >
-                    {t('hub_gps_next_stop')} {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
-                  </span>
-                )}
               </>
             ) : (
               <>
@@ -379,17 +432,32 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           {t('hub_all_stops')}
         </div>
         <div className="flex flex-col gap-2.5 stagger-children">
-          {missions.map((mission, idx) => (
-            <MissionCard
-              key={mission.id}
-              mission={mission}
-              progress={tourProgress.missions[mission.id]}
-              index={idx}
-              onOpen={handleOpenMission}
-              distance={distances[mission.id]}
-              gpsActive={gpsActive}
-            />
-          ))}
+          {missions.map((mission, idx) => {
+            const prog = tourProgress.missions[mission.id]
+            // Done or skipped stops collapse to a slim row.
+            if (prog?.status === 'completed') {
+              return (
+                <CompactMissionCard
+                  key={mission.id}
+                  mission={mission}
+                  progress={prog}
+                  index={idx}
+                  onOpen={handleOpenMission}
+                />
+              )
+            }
+            return (
+              <MissionCard
+                key={mission.id}
+                mission={mission}
+                progress={prog}
+                index={idx}
+                onOpen={handleOpenMission}
+                distance={distances[mission.id]}
+                gpsActive={gpsActive}
+              />
+            )
+          })}
         </div>
 
         <div className="mt-4 px-1 text-center">
@@ -415,15 +483,15 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             />
             <button
               onClick={() => setFullscreen(false)}
-              className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center"
-              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
+              className="absolute right-4 w-11 h-11 rounded-full flex items-center justify-center active:scale-90 transition-transform"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
             >
               <X className="w-5 h-5 text-white" />
             </button>
             {/* Tour label */}
             <div
-              className="absolute top-4 left-4 px-3 py-1.5 rounded-xl text-white text-xs font-semibold"
-              style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
+              className="absolute left-4 px-3 py-1.5 rounded-xl text-white text-xs font-semibold"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 12px)', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', zIndex: 1000 }}
             >
               {tour.title}
             </div>

@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { adminFetchTours, adminUpsertTour } from '../../lib/api'
-import { Save, ArrowLeft, Loader2, Copy, Check, MapPin } from 'lucide-react'
+import { adminFetchTours, adminUpsertTour, uploadTourCover, deleteStopPhoto } from '../../lib/api'
+import { Save, ArrowLeft, Loader2, Copy, Check, MapPin, Upload, Trash2 } from 'lucide-react'
 
 const ALL_TAGS = [
   { id: 'history', label: '🏛️ History' },
@@ -20,6 +20,7 @@ const EMPTY = {
   price: 0, max_score: 0,
   gradient_from: '#1e3a8a', gradient_to: '#0e7490', accent_color: '#38bdf8',
   tags: [], kid_friendly: false, published: true, bypass_gps: false,
+  cover_image_url: '', show_cover_image: false,
 }
 
 function Field({ label, children, hint }) {
@@ -42,6 +43,9 @@ export default function TourEdit() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const coverRef = useRef()
 
   function copyPreviewLink() {
     const url = `${window.location.origin}${window.location.pathname.replace(/\/admin.*/, '')}?preview=${form.preview_token}`
@@ -62,6 +66,37 @@ export default function TourEdit() {
 
   function set(field, value) {
     setForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  async function handleCoverChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!form.id.trim()) { setError('Enter a Tour ID before uploading a cover image.'); return }
+    setError('')
+    setUploading(true)
+    try {
+      const url = await uploadTourCover(file, form.id.trim())
+      set('cover_image_url', url)
+    } catch (err) {
+      setError('Cover upload failed: ' + err.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function handleDeleteCover() {
+    setError('')
+    setDeleting(true)
+    try {
+      await deleteStopPhoto(form.cover_image_url)
+      set('cover_image_url', '')
+      set('show_cover_image', false)
+      if (coverRef.current) coverRef.current.value = ''
+    } catch (err) {
+      setError('Could not delete cover image: ' + err.message)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   function toggleTag(tagId) {
@@ -125,6 +160,69 @@ export default function TourEdit() {
             <textarea value={form.description || ''} onChange={e => set('description', e.target.value)}
               className={`${inputCls} h-24 resize-none`} placeholder="Full tour description..." />
           </Field>
+        </div>
+
+        {/* Cover image */}
+        <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-4">
+          <h2 className="font-semibold text-white">Cover Image</h2>
+
+          <div className="relative rounded-xl overflow-hidden bg-gray-800/40" style={{ height: 200 }}>
+            {form.cover_image_url ? (
+              <>
+                <img src={form.cover_image_url} alt="" className="w-full h-full object-cover" />
+                {(uploading || deleting) && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+                {!uploading && !deleting && (
+                  <div className="absolute bottom-2 right-2 flex gap-1.5">
+                    <button type="button" onClick={() => coverRef.current?.click()}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white"
+                      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                      <Upload className="w-3 h-3" /> Replace
+                    </button>
+                    <button type="button" onClick={handleDeleteCover} title="Delete cover image"
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-red-300"
+                      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                      <Trash2 className="w-3 h-3" /> Delete
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <button type="button" onClick={() => coverRef.current?.click()} disabled={uploading}
+                className="w-full h-full flex flex-col items-center justify-center gap-2 text-gray-500 hover:text-gray-300 transition-colors">
+                {uploading
+                  ? <Loader2 className="w-7 h-7 animate-spin" />
+                  : <Upload className="w-8 h-8 opacity-40" />}
+                <span className="text-xs">Upload cover image</span>
+              </button>
+            )}
+            <input ref={coverRef} type="file" accept="image/*" onChange={handleCoverChange} className="hidden" />
+          </div>
+
+          {/* What the player sees on the tour card */}
+          <div className="flex items-center gap-3">
+            <span className="text-gray-400 text-sm flex-1">On the tour card, show</span>
+            <div className="flex rounded-xl overflow-hidden border border-gray-700">
+              {[
+                { val: false, label: 'Map' },
+                { val: true, label: 'Image' },
+              ].map(opt => {
+                const active = !!form.show_cover_image === opt.val
+                const disabled = opt.val === true && !form.cover_image_url
+                return (
+                  <button key={String(opt.val)} type="button" disabled={disabled}
+                    onClick={() => set('show_cover_image', opt.val)}
+                    className="px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={active ? { background: '#2563eb', color: '#fff' } : { background: 'transparent', color: '#9ca3af' }}>
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-5">
@@ -257,7 +355,7 @@ export default function TourEdit() {
               className="px-5 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-gray-800 text-sm font-medium transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={saving}
+            <button type="submit" disabled={saving || uploading || deleting}
               className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors text-sm">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? 'Saving…' : 'Save Tour'}

@@ -97,15 +97,19 @@ function TourCard({ tour, progress, isPurchased, onSelect, onBuy }) {
       className="w-full text-left rounded-2xl overflow-hidden active:scale-[0.98] transition-transform"
       style={{ border: '1px solid rgba(255,255,255,0.07)' }}
     >
-      {/* Map preview */}
+      {/* Map preview — or cover image when the admin chose to show it */}
       <div style={{ height: 150, position: 'relative' }}>
-        <MapView
-          missions={tour.missions}
-          missionProgress={progress?.missions}
-          height={150}
-          interactive={false}
-          accentColor={tour.accentColor}
-        />
+        {tour.showCoverImage && tour.coverImageUrl ? (
+          <img src={tour.coverImageUrl} alt={tour.title} className="w-full h-full object-cover" />
+        ) : (
+          <MapView
+            missions={tour.missions}
+            missionProgress={progress?.missions}
+            height={150}
+            interactive={false}
+            accentColor={tour.accentColor}
+          />
+        )}
         {/* Price badge overlay */}
         <div
           className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1"

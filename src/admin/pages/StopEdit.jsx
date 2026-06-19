@@ -18,6 +18,7 @@ const EMPTY = {
   challenge_hint: '',
   challenge_prompt: '',
   photo_url: '',
+  show_photo: false,
   points: 100,
 }
 
@@ -138,6 +139,7 @@ export default function StopEdit() {
     try {
       await deleteStopPhoto(form.photo_url)
       set('photo_url', '')
+      set('show_photo', false)
       setPreview(null)
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
@@ -251,6 +253,34 @@ export default function StopEdit() {
                 Photo
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+            </div>
+          </div>
+
+          {/* What the player sees for this stop */}
+          <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-800">
+            <span className="text-gray-400 text-sm flex-1">In the app, show</span>
+            <div className="flex rounded-xl overflow-hidden border border-gray-700">
+              {[
+                { val: false, label: 'Map' },
+                { val: true, label: 'Photo' },
+              ].map(opt => {
+                const active = !!form.show_photo === opt.val
+                const disabled = opt.val === true && !form.photo_url
+                return (
+                  <button
+                    key={String(opt.val)}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => set('show_photo', opt.val)}
+                    className="px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={active
+                      ? { background: '#2563eb', color: '#fff' }
+                      : { background: 'transparent', color: '#9ca3af' }}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>

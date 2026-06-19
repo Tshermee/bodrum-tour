@@ -118,8 +118,14 @@ export default function MissionScreen({
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto no-scrollbar">
-        {/* Locator map with expand button */}
-        {mission.coordinates && (
+        {/* Photo (when chosen) or locator map with expand button */}
+        {mission.showPhoto && mission.photoUrl ? (
+          <div className="px-4 pt-3 pb-0">
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+              <img src={mission.photoUrl} alt={mission.title} className="w-full object-cover" style={{ maxHeight: 220 }} />
+            </div>
+          </div>
+        ) : mission.coordinates && (
           <div className="px-4 pt-3 pb-0">
             <div className="relative rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
               <MapView

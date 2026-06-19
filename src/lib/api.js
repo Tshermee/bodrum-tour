@@ -33,6 +33,8 @@ function transformStop(stop, tour) {
     coordinates: stop.lat && stop.lng ? { lat: Number(stop.lat), lng: Number(stop.lng) } : null,
     story: stop.story || '',
     points: stop.points || 100,
+    photoUrl: stop.photo_url || null,
+    showPhoto: !!stop.show_photo,
     challenge,
   }
 }
@@ -58,6 +60,8 @@ export function transformTour(raw) {
     kidFriendly: raw.kid_friendly || false,
     bypassGps: raw.bypass_gps || false,
     previewToken: raw.preview_token || null,
+    coverImageUrl: raw.cover_image_url || null,
+    showCoverImage: !!raw.show_cover_image,
     missions: stops.map(s => transformStop(s, raw)),
   }
 }
@@ -347,15 +351,33 @@ export async function uploadStopPhoto(file, stopId) {
 }
 
 // Deletes a previously uploaded object from the tour-media bucket, given its
-// public URL. No-op for empty/foreign URLs.
+// public URL. No-op for empty/foreign URLs. Throws if nothing was removed —
+// supabase-js reports an RLS-blocked remove() as success-with-empty-result,
+// so we treat an empty result as a failure to surface it instead of silently
+// leaving an orphaned file.
 export async function deleteStopPhoto(photoUrl) {
   if (!photoUrl) return
   const marker = '/tour-media/'
   const idx = photoUrl.indexOf(marker)
   if (idx === -1) return // not a tour-media URL — nothing to remove
-  const path = decodeURIComponent(photoUrl.slice(idx + marker.length))
-  const { error } = await supabaseAdmin.storage.from('tour-media').remove([path])
+  const path = decodeURIComponent(photoUrl.slice(idx + marker.length).split('?')[0])
+  const { data, error } = await supabaseAdmin.storage.from('tour-media').remove([path])
   if (error) throw error
+  if (!data || data.length === 0) {
+    throw new Error('nothing was deleted (permission denied or file already gone)')
+  }
+}
+
+// Uploads a tour cover image to tour-media and returns its public URL.
+export async function uploadTourCover(file, tourId) {
+  const ext = file.name.split('.').pop()
+  const path = `tours/${tourId}.${ext}`
+  const { error } = await supabaseAdmin.storage
+    .from('tour-media')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabaseAdmin.storage.from('tour-media').getPublicUrl(path)
+  return data.publicUrl
 }
 
 export async function uploadUserPhoto(file, progressId, stopId) {

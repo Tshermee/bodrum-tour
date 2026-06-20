@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -117,7 +117,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
         {/* Text */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-white/40 text-xs font-semibold tracking-wider">STOP {index + 1}</span>
+            <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">{t('mission_stop')} {index + 1}</span>
             {isUnlocked && isNearby && (
               <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400">
                 {t('hub_here')}
@@ -160,49 +160,6 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
   )
 }
 
-// The active stop, shown prominently above the map with the start CTA baked in.
-// Styled to match the dark stop rows (not the gradient header) but a touch richer.
-function CurrentStopCard({ mission, index, distance, arrived, gpsActive, onOpen }) {
-  const { t } = useTranslation()
-  const accent = mission.accentColor
-  return (
-    <button
-      onClick={() => onOpen(mission.id)}
-      className="w-full text-left rounded-2xl p-4 flex items-center gap-4 active:scale-[0.98] transition-transform"
-      style={arrived
-        ? { background: 'linear-gradient(135deg, rgba(22,163,74,0.18), rgba(34,197,94,0.10))', border: '1px solid rgba(34,197,94,0.5)', boxShadow: '0 0 22px rgba(34,197,94,0.25)' }
-        : { background: 'rgba(255,255,255,0.05)', border: `1px solid ${accent}55`, boxShadow: `0 0 16px ${accent}1f` }}
-    >
-      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-        style={{ background: arrived ? 'rgba(34,197,94,0.2)' : `${accent}22`, border: `1px solid ${arrived ? 'rgba(34,197,94,0.35)' : `${accent}33`}` }}>
-        {mission.emoji}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">{t('mission_stop')} {index + 1}</span>
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-            style={arrived ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: `${accent}22`, color: accent }}>
-            {arrived ? t('hub_here') : t('hub_next')}
-          </span>
-        </div>
-        <div className="text-white font-semibold text-sm truncate">{mission.title}</div>
-        <div className="text-white/50 text-xs truncate mt-0.5">{mission.location}</div>
-      </div>
-      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-        {gpsActive && distance != null && (
-          <span className="text-xs font-bold px-2.5 py-1 rounded-full"
-            style={arrived ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}>
-            {arrived ? t('hub_nearby') : formatDistance(distance)}
-          </span>
-        )}
-        <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color: arrived ? '#4ade80' : accent }}>
-          {t('hub_start_challenge')} <ChevronRight className="w-4 h-4" />
-        </span>
-      </div>
-    </button>
-  )
-}
-
 export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenMission, onBackToSelect, onResetTour }) {
   const { t, i18n } = useTranslation()
   const [showReset, setShowReset] = useState(false)
@@ -212,7 +169,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   const [arrivedTarget, setArrivedTarget] = useState(false)
   const [rulesCfg, setRulesCfg] = useState(null)
   const [showDone, setShowDone] = useState(false)
-  const prevNearby = useRef(new Set())
 
   // Show rules the first time a user enters a new tour
   useEffect(() => {
@@ -287,23 +243,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
       return prev
     })
   }, [targetDist])
-
-  // Fire toast when user enters the 50m radius of an unlocked stop
-  useEffect(() => {
-    if (!userPos) return
-    missions.forEach(m => {
-      if (tourProgress.missions[m.id]?.status !== 'unlocked') return
-      const dist = distances[m.id]
-      if (dist == null) return
-      const nearby = dist <= GPS_RADIUS
-      if (nearby && !prevNearby.current.has(m.id)) {
-        setToast({ text: t('hub_toast_arrive', { name: m.title }), subText: t('hub_toast_arrive_sub'), type: 'arrive' })
-        prevNearby.current.add(m.id)
-      } else if (!nearby) {
-        prevNearby.current.delete(m.id)
-      }
-    })
-  }, [distances, missions, tourProgress, userPos])
 
   // Auto-dismiss toast after 4 s
   useEffect(() => {
@@ -429,39 +368,62 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
         </div>
       )}
 
-      {/* ── Current step (active stop, CTA integrated) ───────── */}
+      {/* ── Current step — stop header + its map + arrival, one unit ── */}
       {currentStop && (
-        <div className="flex-shrink-0 mx-4 mt-3">
-          <CurrentStopCard
-            mission={currentStop}
-            index={missions.findIndex(m => m.id === currentStop.id)}
-            distance={targetDist}
-            arrived={arrivedTarget}
-            gpsActive={gpsActive}
-            onOpen={handleOpenMission}
-          />
-        </div>
-      )}
-
-      {/* ── Map (you → current stop) ─────────────────────────── */}
-      <div className="flex-shrink-0 mx-4 mt-3">
         <div
-          className="rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+          className="flex-shrink-0 mx-4 mt-3 rounded-2xl overflow-hidden"
+          style={arrivedTarget
+            ? { border: '1px solid rgba(34,197,94,0.55)', boxShadow: '0 0 22px rgba(34,197,94,0.22)' }
+            : { border: `1px solid ${currentStop.accentColor}66`, boxShadow: `0 0 16px ${currentStop.accentColor}1f` }}
         >
-          {/* Map + expand button — the "Up next" card above already names the
-              target + distance, so the map carries no duplicate text label. */}
+          {/* Header — tap to start */}
+          <button
+            onClick={() => handleOpenMission(currentStop.id)}
+            className="w-full text-left p-4 flex items-center gap-4 active:scale-[0.99] transition-transform"
+            style={{ background: arrivedTarget ? 'rgba(34,197,94,0.10)' : 'rgba(255,255,255,0.04)' }}
+          >
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+              style={{ background: arrivedTarget ? 'rgba(34,197,94,0.2)' : `${currentStop.accentColor}22`, border: `1px solid ${arrivedTarget ? 'rgba(34,197,94,0.35)' : `${currentStop.accentColor}33`}` }}>
+              {currentStop.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">
+                  {t('mission_stop')} {missions.findIndex(m => m.id === currentStop.id) + 1}
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={arrivedTarget ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: `${currentStop.accentColor}22`, color: currentStop.accentColor }}>
+                  {arrivedTarget ? t('hub_here') : t('hub_next')}
+                </span>
+              </div>
+              <div className="text-white font-semibold text-sm truncate">{currentStop.title}</div>
+              <div className="text-white/50 text-xs truncate mt-0.5">{currentStop.location}</div>
+            </div>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+              {gpsActive && targetDist != null && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={arrivedTarget ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}>
+                  {arrivedTarget ? t('hub_nearby') : formatDistance(targetDist)}
+                </span>
+              )}
+              <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color: arrivedTarget ? '#4ade80' : currentStop.accentColor }}>
+                {t('hub_start_challenge')} <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+          </button>
+
+          {/* This stop's map */}
           <div className="relative">
             <MapView
-              missions={currentStop ? [currentStop] : missions}
+              missions={[currentStop]}
               missionProgress={tourProgress.missions}
-              height={currentStop ? 240 : 190}
+              height={220}
               interactive={true}
               accentColor={tour.accentColor}
-              singleMode={!!currentStop}
+              singleMode={true}
               userPosition={userPos}
-              extraFitPoints={currentStop && userPos ? [[userPos.lat, userPos.lng]] : null}
-              geofenceStop={currentStop?.coordinates || null}
+              extraFitPoints={userPos ? [[userPos.lat, userPos.lng]] : null}
+              geofenceStop={currentStop.coordinates || null}
               geofenceActive={arrivedTarget}
             />
             <button
@@ -473,25 +435,57 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             </button>
           </div>
 
-          {/* GPS status bar */}
-          <div
-            className="flex items-center gap-2 px-3 py-2"
-            style={{ background: 'rgba(6,15,30,0.85)' }}
-          >
-            {gpsActive ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
-                <span className="text-white/50 text-xs">{t('hub_gps_active')}</span>
-              </>
-            ) : (
-              <>
-                <MapPin className="w-3 h-3 text-white/25 flex-shrink-0" />
-                <span className="text-white/25 text-xs">{t('hub_gps_inactive')}</span>
-              </>
-            )}
+          {/* Footer — arrival CTA when here, else GPS status */}
+          {arrivedTarget ? (
+            <button
+              onClick={() => handleOpenMission(currentStop.id)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-3 active:opacity-90 transition-opacity"
+              style={{ background: 'rgba(34,197,94,0.16)', borderTop: '1px solid rgba(34,197,94,0.3)' }}
+            >
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              <span className="text-green-300 text-sm font-semibold">{t('hub_arrived_here')}</span>
+              <ChevronRight className="w-4 h-4 text-green-300" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'rgba(6,15,30,0.85)' }}>
+              {gpsActive ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
+                  <span className="text-white/50 text-xs">{t('hub_gps_active')}</span>
+                </>
+              ) : (
+                <>
+                  <MapPin className="w-3 h-3 text-white/25 flex-shrink-0" />
+                  <span className="text-white/25 text-xs">{t('hub_gps_inactive')}</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Overview map fallback when there's no active stop (all done) */}
+      {!currentStop && (
+        <div className="flex-shrink-0 mx-4 mt-3">
+          <div className="rounded-2xl overflow-hidden relative" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <MapView
+              missions={missions}
+              missionProgress={tourProgress.missions}
+              height={190}
+              interactive={true}
+              accentColor={tour.accentColor}
+              userPosition={userPos}
+            />
+            <button
+              onClick={() => setFullscreen(true)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.55)', zIndex: 400 }}
+            >
+              <Maximize2 className="w-4 h-4 text-white" />
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* ── Toast notification ──────────────────────────────── */}
       {toast && (

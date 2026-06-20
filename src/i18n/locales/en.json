@@ -76,6 +76,7 @@
   "hub_nearby": "Nearby ✓",
   "hub_here": "Here ✓",
   "hub_next": "Next",
+  "hub_arrived_here": "You're here — start the challenge",
   "hub_gps_active": "Live location active",
   "hub_gps_next_stop": "Next stop:",
   "hub_gps_inactive": "Enable GPS for live tracking & stop unlocks",

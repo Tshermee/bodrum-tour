@@ -76,6 +76,7 @@
   "hub_nearby": "À proximité ✓",
   "hub_here": "Ici ✓",
   "hub_next": "Suivant",
+  "hub_arrived_here": "Vous y êtes — démarrer le défi",
   "hub_gps_active": "Position en direct active",
   "hub_gps_next_stop": "Prochaine étape :",
   "hub_gps_inactive": "Activez le GPS pour le suivi en direct et le déblocage des étapes",

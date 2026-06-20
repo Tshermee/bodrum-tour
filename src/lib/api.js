@@ -13,11 +13,12 @@ function emojiForTags(tags = []) {
 
 const STOP_EMOJI = { photo: '📸', riddle: '🔍', code: '🔢', multiple_choice: '🎯', image_hunt: '🔎' }
 
-function transformStop(stop, tour) {
+function transformStop(stop, tour, lang = 'en') {
+  const tx = stop.translations?.[lang] ?? {}
   const challenge = {
     type: stop.challenge_type || 'photo',
-    instruction: stop.challenge_prompt || '',
-    hint: stop.challenge_hint || '',
+    instruction: tx.challenge_prompt || stop.challenge_prompt || '',
+    hint: tx.challenge_hint || stop.challenge_hint || '',
   }
   if (stop.challenge_type === 'riddle') challenge.answer = stop.challenge_answer || ''
   if (stop.challenge_type === 'code') challenge.code = stop.challenge_answer || ''
@@ -32,28 +33,30 @@ function transformStop(stop, tour) {
 
   return {
     id: stop.order_index,
-    title: stop.name,
+    title: tx.name || stop.name,
     location: stop.location_name || stop.name,
     emoji: STOP_EMOJI[stop.challenge_type] || '📍',
     gradient: [tour.gradient_from || '#1e3a8a', tour.gradient_to || '#0e7490'],
     accentColor: tour.accent_color || '#38bdf8',
     mapsQuery: stop.location_name ? `${stop.location_name}, Bodrum, Turkey` : 'Bodrum, Turkey',
     coordinates: stop.lat && stop.lng ? { lat: Number(stop.lat), lng: Number(stop.lng) } : null,
-    story: stop.story || '',
+    story: tx.story || stop.story || '',
     points: stop.points || 100,
     photoUrl: stop.photo_url || null,
+    audioUrl: stop.audio_url || null,
     // for image_hunt the challenge component always shows the photo — keep map visible in the header
     showPhoto: stop.challenge_type === 'image_hunt' ? false : !!stop.show_photo,
     challenge,
   }
 }
 
-export function transformTour(raw) {
+export function transformTour(raw, lang = 'en') {
+  const tx = raw.translations?.[lang] ?? {}
   const stops = (raw.tour_stops || []).sort((a, b) => a.order_index - b.order_index)
   return {
     id: raw.id,
-    title: raw.name,
-    tagline: raw.subtitle || raw.description || '',
+    title: tx.name || raw.name,
+    tagline: tx.subtitle || raw.subtitle || raw.description || '',
     coverEmoji: emojiForTags(raw.tags),
     gradient: [raw.gradient_from || '#1e3a8a', raw.gradient_to || '#0e7490'],
     accentColor: raw.accent_color || '#38bdf8',
@@ -71,18 +74,18 @@ export function transformTour(raw) {
     previewToken: raw.preview_token || null,
     coverImageUrl: raw.cover_image_url || null,
     showCoverImage: !!raw.show_cover_image,
-    missions: stops.map(s => transformStop(s, raw)),
+    missions: stops.map(s => transformStop(s, raw, lang)),
   }
 }
 
-export async function fetchAllToursForApp() {
+export async function fetchAllToursForApp(lang = 'en') {
   const { data, error } = await supabase
     .from('tours')
     .select('*, tour_stops(*)')
     .eq('published', true)
     .order('sort_order', { ascending: true })
   if (error) throw error
-  return data.map(transformTour)
+  return data.map(raw => transformTour(raw, lang))
 }
 
 // ─── Tours ────────────────────────────────────────────────────────────────────
@@ -244,14 +247,14 @@ export async function adminDuplicateTour(id) {
   return newTour
 }
 
-export async function fetchTourByPreviewToken(token) {
+export async function fetchTourByPreviewToken(token, lang = 'en') {
   const { data, error } = await supabase
     .from('tours')
     .select('*, tour_stops(*)')
     .eq('preview_token', token)
     .single()
   if (error) throw error
-  return transformTour(data)
+  return transformTour(data, lang)
 }
 
 // ─── Admin: Stops ─────────────────────────────────────────────────────────────
@@ -340,10 +343,27 @@ export async function reportSkip({ tourId, stopOrder, stopName, teamName, reason
 export async function adminFetchSkipReports() {
   const { data, error } = await supabaseAdmin
     .from('skip_reports')
-    .select('*')
+    .select('*, tours(name)')
     .order('created_at', { ascending: false })
   if (error) throw error
-  return data
+  return data ?? []
+}
+
+export async function fetchAppConfig(key) {
+  const { data, error } = await supabase
+    .from('app_config')
+    .select('data')
+    .eq('key', key)
+    .maybeSingle()
+  if (error) throw error
+  return data?.data ?? null
+}
+
+export async function adminSaveAppConfig(key, data) {
+  const { error } = await supabaseAdmin
+    .from('app_config')
+    .upsert({ key, data, updated_at: new Date().toISOString() })
+  if (error) throw error
 }
 
 // ─── Storage: Photo Upload ────────────────────────────────────────────────────
@@ -375,6 +395,26 @@ export async function deleteStopPhoto(photoUrl) {
   if (!data || data.length === 0) {
     throw new Error('nothing was deleted (permission denied or file already gone)')
   }
+}
+
+export async function uploadStopAudio(file, stopId) {
+  const ext = file.name.split('.').pop()
+  const path = `audio/${stopId}.${ext}`
+  const { error } = await supabaseAdmin.storage
+    .from('tour-media')
+    .upload(path, file, { upsert: true, contentType: file.type })
+  if (error) throw error
+  const { data } = supabaseAdmin.storage.from('tour-media').getPublicUrl(path)
+  return data.publicUrl
+}
+
+export async function deleteStopAudio(audioUrl) {
+  if (!audioUrl) return
+  const marker = '/tour-media/'
+  const idx = audioUrl.indexOf(marker)
+  if (idx === -1) return
+  const path = decodeURIComponent(audioUrl.slice(idx + marker.length).split('?')[0])
+  await supabaseAdmin.storage.from('tour-media').remove([path])
 }
 
 // Uploads a tour cover image to tour-media and returns its public URL.

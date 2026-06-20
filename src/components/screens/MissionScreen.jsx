@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2, SkipForward } from 'lucide-react'
+import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2, SkipForward, Volume2, Pause } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters } from '../../lib/geo'
@@ -15,6 +15,57 @@ import CodeChallenge from '../challenges/CodeChallenge'
 import MultipleChoiceChallenge from '../challenges/MultipleChoiceChallenge'
 import ImageHuntChallenge from '../challenges/ImageHuntChallenge'
 import MapView from '../ui/MapView'
+
+function AudioGuide({ audioUrl, accentColor }) {
+  const audioRef = useRef(null)
+  const [playing, setPlaying] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  const toggle = () => {
+    if (!audioRef.current) return
+    if (playing) { audioRef.current.pause(); setPlaying(false) }
+    else { audioRef.current.play().then(() => setPlaying(true)).catch(() => {}) }
+  }
+
+  const handleTimeUpdate = () => {
+    if (!audioRef.current || !audioRef.current.duration) return
+    setProgress(audioRef.current.currentTime / audioRef.current.duration)
+  }
+
+  return (
+    <div className="px-4 pb-0 pt-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+      <div
+        className="flex items-center gap-3 py-3 px-4 rounded-xl mb-3"
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <button
+          onClick={toggle}
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+          style={{ background: `${accentColor}22`, border: `1px solid ${accentColor}33` }}
+        >
+          {playing
+            ? <Pause className="w-4 h-4" style={{ color: accentColor }} />
+            : <Volume2 className="w-4 h-4" style={{ color: accentColor }} />}
+        </button>
+        <div className="flex-1 min-w-0">
+          <div className="text-white font-medium text-sm">Audio Guide</div>
+          <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${Math.round(progress * 100)}%`, background: accentColor }}
+            />
+          </div>
+        </div>
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={() => { setPlaying(false); setProgress(0) }}
+        />
+      </div>
+    </div>
+  )
+}
 
 export default function MissionScreen({
   mission,
@@ -170,6 +221,11 @@ export default function MissionScreen({
             <ExternalLink className="w-4 h-4 text-white/30 flex-shrink-0" />
           </a>
         </div>
+
+        {/* Audio guide */}
+        {mission.audioUrl && (
+          <AudioGuide audioUrl={mission.audioUrl} accentColor={mission.accentColor} />
+        )}
 
         {/* Story */}
         <div className="px-4 py-4">

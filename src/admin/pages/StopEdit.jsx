@@ -1,8 +1,53 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { adminFetchStops, adminUpsertStop, uploadStopPhoto, deleteStopPhoto } from '../../lib/api'
-import { Save, ArrowLeft, Loader2, Upload, Trash2, MapPin, ExternalLink } from 'lucide-react'
+import { adminFetchStops, adminUpsertStop, uploadStopPhoto, deleteStopPhoto, uploadStopAudio, deleteStopAudio } from '../../lib/api'
+import { Save, ArrowLeft, Loader2, Upload, Trash2, MapPin, ExternalLink, Music2 } from 'lucide-react'
 import MapView from '../../components/ui/MapView'
+
+const TRANSLATION_LANGS = [
+  { code: 'de', label: '🇩🇪 DE' },
+  { code: 'tr', label: '🇹🇷 TR' },
+  { code: 'fr', label: '🇫🇷 FR' },
+]
+
+function TranslationSection({ value, onChange, fields }) {
+  const [lang, setLang] = useState('de')
+  const cur = value[lang] || {}
+  function setField(field, v) {
+    onChange({ ...value, [lang]: { ...(value[lang] || {}), [field]: v } })
+  }
+  return (
+    <div>
+      <div className="flex border-b border-gray-800">
+        {TRANSLATION_LANGS.map(l => (
+          <button key={l.code} type="button" onClick={() => setLang(l.code)}
+            className="flex-1 px-3 py-2.5 text-sm font-medium transition-colors"
+            style={lang === l.code
+              ? { background: 'rgba(37,99,235,0.12)', color: '#60a5fa', borderBottom: '2px solid #3b82f6' }
+              : { color: '#6b7280' }}>
+            {l.label}
+          </button>
+        ))}
+      </div>
+      <div className="p-4 space-y-3">
+        {fields.map(f => (
+          <div key={f.key}>
+            <label className="block text-xs font-medium text-gray-400 mb-1">{f.label}</label>
+            {f.multiline ? (
+              <textarea value={cur[f.key] || ''} onChange={e => setField(f.key, e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-600 resize-none h-20"
+                placeholder={f.placeholder} />
+            ) : (
+              <input value={cur[f.key] || ''} onChange={e => setField(f.key, e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-600"
+                placeholder={f.placeholder} />
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 const EMPTY = {
   id: undefined,
@@ -21,6 +66,8 @@ const EMPTY = {
   photo_url: '',
   show_photo: false,
   points: 100,
+  audio_url: '',
+  translations: {},
 }
 
 function parseMapsInput(raw) {
@@ -86,9 +133,12 @@ export default function StopEdit() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
+  const [deletingAudio, setDeletingAudio] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(null)
   const fileRef = useRef()
+  const audioRef = useRef()
 
   useEffect(() => {
     if (!isNew) {
@@ -147,6 +197,34 @@ export default function StopEdit() {
       setError('Could not delete photo: ' + err.message)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  async function handleAudioChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAudio(true)
+    try {
+      const tempId = form.id ?? `temp-${Date.now()}`
+      const url = await uploadStopAudio(file, tempId)
+      set('audio_url', url)
+    } catch (err) {
+      setError('Audio upload failed: ' + err.message)
+    } finally {
+      setUploadingAudio(false)
+    }
+  }
+
+  async function handleDeleteAudio() {
+    setDeletingAudio(true)
+    try {
+      await deleteStopAudio(form.audio_url)
+      set('audio_url', '')
+      if (audioRef.current) audioRef.current.value = ''
+    } catch (err) {
+      setError('Could not delete audio: ' + err.message)
+    } finally {
+      setDeletingAudio(false)
     }
   }
 
@@ -427,6 +505,55 @@ export default function StopEdit() {
           <Field label="Hint" hint="Shown after 2 wrong attempts.">
             <input value={form.challenge_hint || ''} onChange={e => set('challenge_hint', e.target.value)} className={inputCls} placeholder="e.g. Think about what this site gave to the English language." />
           </Field>
+        </div>
+
+        {/* Audio Guide */}
+        <div className="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-4">
+          <div className="flex items-center gap-2">
+            <Music2 className="w-4 h-4 text-gray-400" />
+            <h2 className="font-semibold text-white">Audio Guide</h2>
+          </div>
+          <p className="text-gray-500 text-xs -mt-2">Optional audio narration played by the player while walking to this stop.</p>
+          {form.audio_url ? (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <Music2 className="w-4 h-4 text-blue-400 flex-shrink-0" />
+              <audio controls src={form.audio_url} className="flex-1 h-8" style={{ filter: 'invert(0.8)' }} />
+              {(uploadingAudio || deletingAudio) && <Loader2 className="w-4 h-4 animate-spin text-gray-400" />}
+              {!uploadingAudio && !deletingAudio && (
+                <button type="button" onClick={handleDeleteAudio}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-red-300"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                  <Trash2 className="w-3 h-3" /> Remove
+                </button>
+              )}
+            </div>
+          ) : (
+            <button type="button" onClick={() => audioRef.current?.click()} disabled={uploadingAudio}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-300 hover:text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {uploadingAudio ? <Loader2 className="w-4 h-4 animate-spin" /> : <Music2 className="w-4 h-4" />}
+              {uploadingAudio ? 'Uploading…' : 'Upload audio file (mp3, m4a, wav)'}
+            </button>
+          )}
+          <input ref={audioRef} type="file" accept="audio/*" onChange={handleAudioChange} className="hidden" />
+        </div>
+
+        {/* Translations */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+          <div className="px-6 pt-5 pb-3 border-b border-gray-800">
+            <h2 className="font-semibold text-white">Translations</h2>
+            <p className="text-gray-500 text-xs mt-0.5">Override stop content per language. Leave blank to use the English version.</p>
+          </div>
+          <TranslationSection
+            value={form.translations || {}}
+            onChange={t => set('translations', t)}
+            fields={[
+              { key: 'name', label: 'Stop Name', placeholder: 'Translated stop name' },
+              { key: 'story', label: 'Story', placeholder: 'Translated story text…', multiline: true },
+              { key: 'challenge_prompt', label: 'Challenge Prompt', placeholder: 'Translated challenge instruction…', multiline: true },
+              { key: 'challenge_hint', label: 'Hint', placeholder: 'Translated hint…' },
+            ]}
+          />
         </div>
 
         {error && <div className="bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">{error}</div>}

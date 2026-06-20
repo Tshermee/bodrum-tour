@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ALL_TOURS } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { fetchAllToursForApp, fetchTourByPreviewToken, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops, reportSkip } from './lib/api'
@@ -45,17 +46,19 @@ export default function App() {
   const [redeemedRewards, setRedeemedRewards] = useLocalStorage('bodrum-redeemed', [])
 
   const isPreviewMode = useRef(false)
+  const { i18n } = useTranslation()
 
   const [tours, setTours] = useState(ALL_TOURS)
   useEffect(() => {
+    const lang = (i18n.language || 'en').split('-')[0]
     const previewToken = new URLSearchParams(window.location.search).get('preview')
 
-    fetchAllToursForApp()
+    fetchAllToursForApp(lang)
       .then(async loaded => {
         if (loaded.length > 0) setTours(loaded)
         if (previewToken) {
           try {
-            const previewTour = await fetchTourByPreviewToken(previewToken)
+            const previewTour = await fetchTourByPreviewToken(previewToken, lang)
             isPreviewMode.current = true
             setTours(prev => {
               const exists = prev.some(t => t.id === previewTour.id)
@@ -63,7 +66,6 @@ export default function App() {
                 ? prev.map(t => t.id === previewTour.id ? previewTour : t)
                 : [...prev, previewTour]
             })
-            // Auto-grant access and select the tour
             setPurchases(prev => ({ ...prev, [previewTour.id]: true }))
             setSelectedTourId(previewTour.id)
             setAllProgress(prev => {
@@ -78,15 +80,14 @@ export default function App() {
                 },
               }
             })
-            // Skip straight to hub if we already have a name
             if (teamName) setScreen('hub')
           } catch (e) {
             console.warn('Preview tour not found', e)
           }
         }
       })
-      .catch(() => {}) // silently fall back to ALL_TOURS
-  }, [])
+      .catch(() => {})
+  }, [i18n.language])
 
   const [screen, setScreen] = useState(() => {
     if (!teamName) return 'welcome'

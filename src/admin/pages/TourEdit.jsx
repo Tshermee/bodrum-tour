@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { adminFetchTours, adminUpsertTour, uploadTourCover, deleteStopPhoto } from '../../lib/api'
-import { Save, ArrowLeft, Loader2, Copy, Check, MapPin, Upload, Trash2 } from 'lucide-react'
+import { Save, ArrowLeft, Loader2, Copy, Check, MapPin, Upload, Trash2, ChevronDown } from 'lucide-react'
 
 const ALL_TAGS = [
   { id: 'history', label: '🏛️ History' },
@@ -14,6 +14,92 @@ const ALL_TAGS = [
   { id: 'architecture', label: '🏗️ Architecture' },
 ]
 
+const TRANSLATION_LANGS = [
+  { code: 'tr', label: 'Turkish', flag: '🇹🇷' },
+  { code: 'de', label: 'German', flag: '🇩🇪' },
+  { code: 'fr', label: 'French', flag: '🇫🇷' },
+  { code: 'es', label: 'Spanish', flag: '🇪🇸' },
+  { code: 'it', label: 'Italian', flag: '🇮🇹' },
+  { code: 'nl', label: 'Dutch', flag: '🇳🇱' },
+  { code: 'ru', label: 'Russian', flag: '🇷🇺' },
+  { code: 'ar', label: 'Arabic', flag: '🇸🇦' },
+]
+
+function TranslationSection({ value, onChange, fields }) {
+  const [openLang, setOpenLang] = useState(null)
+
+  function setField(lang, key, v) {
+    const langData = { ...(value[lang] || {}) }
+    if (v === '') {
+      delete langData[key]
+    } else {
+      langData[key] = v
+    }
+    if (Object.keys(langData).length === 0) {
+      const next = { ...value }
+      delete next[lang]
+      onChange(next)
+    } else {
+      onChange({ ...value, [lang]: langData })
+    }
+  }
+
+  return (
+    <div className="divide-y divide-gray-800">
+      {TRANSLATION_LANGS.map(lang => {
+        const isOpen = openLang === lang.code
+        const hasData = value[lang.code] && Object.values(value[lang.code]).some(v => v && v.trim())
+        return (
+          <div key={lang.code}>
+            <button
+              type="button"
+              onClick={() => setOpenLang(isOpen ? null : lang.code)}
+              className="w-full flex items-center gap-3 px-6 py-3.5 text-left hover:bg-gray-800/40 transition-colors"
+            >
+              <span className="text-lg leading-none">{lang.flag}</span>
+              <span className="text-sm font-medium text-gray-300 flex-1">{lang.label}</span>
+              {hasData && (
+                <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: 'rgba(59,130,246,0.15)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)' }}>
+                  translated
+                </span>
+              )}
+              <ChevronDown
+                className="w-4 h-4 text-gray-500 transition-transform"
+                style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
+            </button>
+            {isOpen && (
+              <div className="px-6 pb-5 pt-1 space-y-3 bg-gray-800/20">
+                {fields.map(f => (
+                  <div key={f.key}>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">{f.label}</label>
+                    {f.multiline ? (
+                      <textarea
+                        value={(value[lang.code] || {})[f.key] || ''}
+                        onChange={e => setField(lang.code, f.key, e.target.value)}
+                        placeholder={f.placeholder}
+                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 h-20 resize-none text-sm"
+                      />
+                    ) : (
+                      <input
+                        value={(value[lang.code] || {})[f.key] || ''}
+                        onChange={e => setField(lang.code, f.key, e.target.value)}
+                        placeholder={f.placeholder}
+                        className="w-full bg-gray-800 border border-gray-700 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-500 text-sm"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const EMPTY = {
   id: '', name: '', subtitle: '', description: '',
   duration_min: '1', duration_max: '2', difficulty: 'Moderate',
@@ -21,6 +107,7 @@ const EMPTY = {
   gradient_from: '#1e3a8a', gradient_to: '#0e7490', accent_color: '#38bdf8',
   tags: [], kid_friendly: false, published: true, bypass_gps: false,
   cover_image_url: '', show_cover_image: false,
+  translations: {},
 }
 
 function Field({ label, children, hint }) {
@@ -335,6 +422,23 @@ export default function TourEdit() {
           </div>
           <div className="rounded-xl h-16 border border-white/10"
             style={{ background: `linear-gradient(135deg, ${form.gradient_from}, ${form.gradient_to})` }} />
+        </div>
+
+        {/* Translations */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+          <div className="px-6 pt-5 pb-3 border-b border-gray-800">
+            <h2 className="font-semibold text-white">Translations</h2>
+            <p className="text-gray-500 text-xs mt-0.5">Override tour content per language. Leave blank to use the English version.</p>
+          </div>
+          <TranslationSection
+            value={form.translations || {}}
+            onChange={t => set('translations', t)}
+            fields={[
+              { key: 'name', label: 'Tour Name', placeholder: 'Translated tour name' },
+              { key: 'subtitle', label: 'Subtitle', placeholder: 'Translated tagline' },
+              { key: 'description', label: 'Description', placeholder: 'Translated description…', multiline: true },
+            ]}
+          />
         </div>
 
         {error && <div className="bg-red-900/40 border border-red-700 rounded-xl p-3 text-red-300 text-sm">{error}</div>}

@@ -10,6 +10,8 @@ import Stops from './pages/Stops'
 import StopEdit from './pages/StopEdit'
 import Purchases from './pages/Purchases'
 import Analytics from './pages/Analytics'
+import SkipReports from './pages/SkipReports'
+import WelcomeConfig from './pages/WelcomeConfig'
 
 export default function AdminApp() {
   const [session, setSession] = useState(null)
@@ -59,6 +61,8 @@ export default function AdminApp() {
           <Route path="/tours/:tourId/stops/:id/edit" element={<StopEdit />} />
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/analytics" element={<Analytics />} />
+          <Route path="/skip-reports" element={<SkipReports />} />
+          <Route path="/welcome-config" element={<WelcomeConfig />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AdminLayout>

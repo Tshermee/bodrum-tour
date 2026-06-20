@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   LayoutDashboard, Map, ShoppingBag, BarChart3,
-  LogOut, Menu, X, ChevronRight, MapPin
+  LogOut, Menu, X, ChevronRight, MapPin, SkipForward, Home
 } from 'lucide-react'
 
 const NAV = [
@@ -11,6 +11,8 @@ const NAV = [
   { path: '/tours', label: 'Tours', icon: Map },
   { path: '/purchases', label: 'Purchases', icon: ShoppingBag },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { path: '/skip-reports', label: 'Skip Reports', icon: SkipForward },
+  { path: '/welcome-config', label: 'Welcome Screen', icon: Home },
 ]
 
 export default function AdminLayout({ children }) {

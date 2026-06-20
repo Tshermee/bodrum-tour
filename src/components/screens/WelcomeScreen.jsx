@@ -1,12 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Compass, ChevronRight, Star, Clock, MapPin } from 'lucide-react'
 import LanguageSelector from '../ui/LanguageSelector'
+import { fetchAppConfig } from '../../lib/api'
 
 export default function WelcomeScreen({ onStart, stats }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [teamName, setTeamName] = useState('')
   const [touched, setTouched] = useState(false)
+  const [appCfg, setAppCfg] = useState(null)
+
+  const lang = (i18n.language || 'en').split('-')[0]
+
+  useEffect(() => {
+    fetchAppConfig('welcome').then(setAppCfg).catch(() => {})
+  }, [])
+
+  const cfg = appCfg?.[lang] || appCfg?.en || {}
 
   const isValid = teamName.trim().length >= 1
 
@@ -54,12 +64,12 @@ export default function WelcomeScreen({ onStart, stats }) {
 
         <div className="text-center mb-2 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           <div className="text-cyan-400 text-sm font-semibold tracking-[0.3em] uppercase mb-2">
-            {t('welcome_tagline')}
+            {cfg.tagline || t('welcome_tagline')}
           </div>
           <h1 className="font-display text-white leading-none">
-            <span className="block text-5xl font-black tracking-tight text-shadow">{t('welcome_heading_main')}</span>
+            <span className="block text-5xl font-black tracking-tight text-shadow">{cfg.heading_main || t('welcome_heading_main')}</span>
             <span className="block text-3xl font-bold italic mt-1" style={{ color: '#22d3ee' }}>
-              {t('welcome_heading_sub')}
+              {cfg.heading_sub || t('welcome_heading_sub')}
             </span>
           </h1>
         </div>
@@ -79,7 +89,7 @@ export default function WelcomeScreen({ onStart, stats }) {
 
         <p className="text-center text-white/60 text-sm leading-relaxed max-w-[300px] mb-8 animate-slide-up"
           style={{ animationDelay: '0.35s' }}>
-          {t('welcome_description')}
+          {cfg.description || t('welcome_description')}
         </p>
 
         <form onSubmit={handleSubmit} className="w-full max-w-[320px] animate-slide-up" style={{ animationDelay: '0.4s' }}>
@@ -113,7 +123,7 @@ export default function WelcomeScreen({ onStart, stats }) {
       </div>
 
       <div className="relative pb-safe px-6 pt-2 text-center animate-fade-in" style={{ animationDelay: '0.6s' }}>
-        <p className="text-white/25 text-xs">{t('welcome_footer')}</p>
+        <p className="text-white/25 text-xs">{cfg.footer || t('welcome_footer')}</p>
       </div>
     </div>
   )

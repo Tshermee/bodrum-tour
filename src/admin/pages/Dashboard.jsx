@@ -25,14 +25,10 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
 const ACTIVE_WINDOW_MINUTES = 180 // 3 hours
 const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_MINUTES * 60 * 1000
 
-function lastActiveMs(s) {
-  // Fall back to start time for old rows that never recorded a heartbeat.
-  const ts = s.last_active_at || s.created_at
-  return ts ? Date.now() - new Date(ts) : Infinity
-}
-
 function isActiveNow(s) {
-  return !s.completed_at && lastActiveMs(s) < ACTIVE_WINDOW_MS
+  // Requires a real recent heartbeat — a session that never reported activity
+  // (no last_active_at) is not counted, so old/seeded rows don't inflate it.
+  return !s.completed_at && !!s.last_active_at && (Date.now() - new Date(s.last_active_at) < ACTIVE_WINDOW_MS)
 }
 
 function timeAgo(iso) {

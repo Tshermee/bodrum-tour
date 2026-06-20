@@ -74,6 +74,8 @@
   "hub_youre_here": "Du bist da ✓",
   "hub_start_challenge": "Start",
   "hub_nearby": "In der Nähe ✓",
+  "hub_here": "Hier ✓",
+  "hub_next": "Nächster",
   "hub_gps_active": "Live-Standort aktiv",
   "hub_gps_next_stop": "Nächster Stopp:",
   "hub_gps_inactive": "GPS aktivieren für Live-Tracking & Stopp-Freischaltung",

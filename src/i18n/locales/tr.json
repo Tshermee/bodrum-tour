@@ -74,6 +74,8 @@
   "hub_youre_here": "Buradasın ✓",
   "hub_start_challenge": "Başla",
   "hub_nearby": "Yakında ✓",
+  "hub_here": "Burada ✓",
+  "hub_next": "Sıradaki",
   "hub_gps_active": "Canlı konum aktif",
   "hub_gps_next_stop": "Sonraki durak:",
   "hub_gps_inactive": "Canlı takip ve durak kilidi açma için GPS'i etkinleştirin",

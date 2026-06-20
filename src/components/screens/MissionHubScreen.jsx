@@ -50,7 +50,7 @@ function CompactMissionCard({ mission, progress, index, onOpen }) {
   )
 }
 
-function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) {
+function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, isTarget }) {
   const { t } = useTranslation()
   const status = progress?.status ?? 'locked'
   const isLocked    = status === 'locked'
@@ -120,24 +120,20 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
             <span className="text-white/40 text-xs font-semibold tracking-wider">STOP {index + 1}</span>
             {isUnlocked && isNearby && (
               <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400">
-                HERE ✓
+                {t('hub_here')}
               </span>
             )}
-            {isUnlocked && !isNearby && !isFar && (
+            {isUnlocked && !isNearby && isTarget && (
               <span
                 className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
                 style={{ background: `${mission.accentColor}22`, color: mission.accentColor }}
               >
-                NOW
+                {t('hub_next')}
               </span>
             )}
           </div>
           <div className="text-white font-semibold text-sm truncate">{mission.title}</div>
-          <div className="text-white/50 text-xs truncate mt-0.5">
-            {isUnlocked && isFar
-              ? `${t('hub_stop_walk')} ${formatDistance(distance)} ${t('hub_stop_walk_to_unlock')}`
-              : mission.location}
-          </div>
+          <div className="text-white/50 text-xs truncate mt-0.5">{mission.location}</div>
         </div>
 
         {/* Right */}
@@ -285,7 +281,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     onOpenMission(missionId)
   }
 
-  const nextDist = nextMission ? distances[nextMission.id] : null
 
   return (
     <div className="flex flex-col min-h-screen screen-enter-up">
@@ -390,57 +385,8 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           className="rounded-2xl overflow-hidden"
           style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         >
-          {/* Leg label */}
-          {nextMission && (
-            <div
-              className="flex items-center gap-2 px-3 py-2"
-              style={{ background: 'rgba(6,15,30,0.85)' }}
-            >
-              <Navigation2 className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tour.accentColor }} />
-              <span className="text-white/70 text-xs font-semibold truncate">
-                {t('hub_up_next')}: {nextMission.title}
-              </span>
-              {gpsActive && nextDist != null && (
-                <span
-                  className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={nextDist <= GPS_RADIUS
-                    ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
-                    : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
-                >
-                  {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Free-roam: no fixed next stop — invite the player to choose */}
-          {isFreeRoam && completed < missions.length && (
-            <div
-              className="flex items-center gap-2 px-3 py-2"
-              style={{ background: 'rgba(6,15,30,0.85)' }}
-            >
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tour.accentColor }} />
-              <span className="text-white/70 text-xs font-semibold truncate">
-                {t('hub_free_roam_hint')}
-              </span>
-              {gpsActive && targetDist != null ? (
-                <span
-                  className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={targetDist <= GPS_RADIUS
-                    ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
-                    : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
-                >
-                  {targetDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(targetDist)}
-                </span>
-              ) : (
-                <span className="ml-auto text-white/40 text-xs flex-shrink-0">
-                  {t('hub_progress_of', { completed, total: missions.length })}
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Map + expand button — leg view when navigating, full overview when done */}
+          {/* Map + expand button — the "Up next" card above already names the
+              target + distance, so the map carries no duplicate text label. */}
           <div className="relative">
             <MapView
               missions={nextMission ? [nextMission] : missions}
@@ -524,6 +470,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 onOpen={handleOpenMission}
                 distance={distances[mission.id]}
                 gpsActive={gpsActive}
+                isTarget={mission.id === targetMission?.id}
               />
             )
           })}

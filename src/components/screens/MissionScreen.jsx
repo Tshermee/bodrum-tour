@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, MapPin, BookOpen, ChevronDown, ChevronUp, Maximize2, X, SkipForward, Volume2, Pause } from 'lucide-react'
+import { ArrowLeft, MapPin, BookOpen, ChevronDown, ChevronUp, Maximize2, X, SkipForward, Volume2, Play, Pause } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters } from '../../lib/geo'
@@ -32,7 +32,6 @@ function AudioGuide({ audioUrl, accentColor }) {
     setProgress(audioRef.current.currentTime / audioRef.current.duration)
   }
 
-  const { t } = useTranslation()
   return (
     <div
       className="flex items-center gap-3 py-3 px-4 rounded-xl mb-3"
@@ -45,11 +44,10 @@ function AudioGuide({ audioUrl, accentColor }) {
       >
         {playing
           ? <Pause className="w-4 h-4" style={{ color: accentColor }} />
-          : <Volume2 className="w-4 h-4" style={{ color: accentColor }} />}
+          : <Play className="w-4 h-4" style={{ color: accentColor }} />}
       </button>
       <div className="flex-1 min-w-0">
-        <div className="text-white font-medium text-sm">🔊 {t('mission_listen')}</div>
-        <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+        <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
           <div
             className="h-full rounded-full transition-all"
             style={{ width: `${Math.round(progress * 100)}%`, background: accentColor }}

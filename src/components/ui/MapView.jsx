@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet-rotate' // patches L.Map with rotate/touchRotate options (no-op unless enabled)
 import { Sun, Moon, LocateFixed } from 'lucide-react'
@@ -156,6 +156,9 @@ export default function MapView({
   userPosition = null,
   extraFitPoints = null,
   showThemeToggle,
+  geofenceStop = null,      // {lat,lng} — draw an arrival ring around this stop
+  geofenceRadius = 50,      // metres
+  geofenceActive = false,   // true → ring turns green ("you're here")
 }) {
   const { theme, toggle } = useMapTheme()
   const { heading, requestHeading } = useDeviceHeading()
@@ -178,6 +181,8 @@ export default function MapView({
   const positions = valid.map(m => [Number(m.coordinates.lat), Number(m.coordinates.lng)])
 
   const userLatLng = userPosition ? toLatLng(userPosition.lat, userPosition.lng) : null
+
+  const geoLatLng = geofenceStop ? toLatLng(geofenceStop.lat, geofenceStop.lng) : null
 
   const safeExtra = Array.isArray(extraFitPoints)
     ? extraFitPoints.map(p => (Array.isArray(p) ? toLatLng(p[0], p[1]) : null)).filter(Boolean)
@@ -213,6 +218,17 @@ export default function MapView({
           {/* key forces a clean layer swap when the theme flips */}
           <TileLayer key={theme} url={TILE_URLS[theme] ?? TILE_URLS.dark} />
           <MapController fitPositions={fitPositions} />
+
+          {/* Arrival geofence ring — green once the player is inside */}
+          {geoLatLng && (
+            <Circle
+              center={geoLatLng}
+              radius={geofenceRadius}
+              pathOptions={geofenceActive
+                ? { color: '#22c55e', weight: 2, opacity: 0.9, fillColor: '#22c55e', fillOpacity: 0.2 }
+                : { color: accentColor, weight: 1.5, opacity: 0.55, fillColor: accentColor, fillOpacity: 0.08, dashArray: '6 6' }}
+            />
+          )}
 
           {/* Stop markers */}
           {valid.map((mission, idx) => {

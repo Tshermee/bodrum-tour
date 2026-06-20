@@ -169,6 +169,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   const [fullscreen, setFullscreen] = useState(false)
   const [toast, setToast] = useState(null)
   const [showRules, setShowRules] = useState(false)
+  const [arrivedTarget, setArrivedTarget] = useState(false)
   const prevNearby = useRef(new Set())
 
   // Show rules the first time a user enters a new tour
@@ -219,6 +220,17 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     return best ?? incomplete[0]
   })()
   const targetDist = targetMission ? distances[targetMission.id] : null
+
+  // "You're here" state with hysteresis: enter the zone at GPS_RADIUS, only drop
+  // out once clearly beyond it (+15 m) so GPS jitter doesn't flicker the affordance.
+  useEffect(() => {
+    if (targetDist == null) { setArrivedTarget(false); return }
+    setArrivedTarget(prev => {
+      if (!prev && targetDist <= GPS_RADIUS) return true
+      if (prev && targetDist > GPS_RADIUS + 15) return false
+      return prev
+    })
+  }, [targetDist])
 
   // Fire toast when user enters the 50m radius of an unlocked stop
   useEffect(() => {
@@ -428,6 +440,8 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               singleMode={!!nextMission}
               userPosition={userPos}
               extraFitPoints={nextMission && userPos ? [[userPos.lat, userPos.lng]] : null}
+              geofenceStop={targetMission?.coordinates || null}
+              geofenceActive={arrivedTarget}
             />
             <button
               onClick={() => setFullscreen(true)}
@@ -519,10 +533,12 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             <MapView
               missions={missions}
               missionProgress={tourProgress.missions}
-              height={window.innerHeight - (nextMission ? 72 : 0)}
+              height={window.innerHeight - (targetMission ? 76 : 0)}
               interactive={true}
               accentColor={tour.accentColor}
               userPosition={userPos}
+              geofenceStop={targetMission?.coordinates || null}
+              geofenceActive={arrivedTarget}
             />
             <button
               onClick={() => setFullscreen(false)}
@@ -540,30 +556,48 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             </div>
           </div>
 
-          {/* Bottom bar: next stop info + distance */}
-          {nextMission && (
-            <div
-              className="flex items-center gap-3 px-4 py-4"
-              style={{ background: 'rgba(6,15,30,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              {gpsActive && (
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="text-white/50 text-xs">{t('hub_gps_next_stop')}</div>
-                <div className="text-white font-semibold text-sm truncate">{nextMission.title}</div>
-              </div>
-              {gpsActive && nextDist != null ? (
-                <span
-                  className="text-sm font-bold px-3 py-1.5 rounded-full"
-                  style={nextDist <= GPS_RADIUS
-                    ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
-                    : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
-                >
-                  {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
+          {/* Bottom bar: "you're here → start" once in range, else stop + distance */}
+          {targetMission && (
+            arrivedTarget ? (
+              <button
+                onClick={() => { setFullscreen(false); handleOpenMission(targetMission.id) }}
+                className="flex items-center gap-3 px-4 py-4 w-full text-left active:scale-[0.99] transition-transform"
+                style={{ background: 'linear-gradient(135deg, rgba(22,163,74,0.95), rgba(34,197,94,0.95))', borderTop: '1px solid rgba(255,255,255,0.12)' }}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(255,255,255,0.2)' }}>
+                  <CheckCircle2 className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white/80 text-xs font-semibold">{t('hub_youre_here')}</div>
+                  <div className="text-white font-bold text-sm truncate">{targetMission.title}</div>
+                </div>
+                <span className="flex items-center gap-1 text-white font-bold text-sm flex-shrink-0">
+                  {t('hub_start_challenge')} <ChevronRight className="w-5 h-5" />
                 </span>
-              ) : null}
-            </div>
+              </button>
+            ) : (
+              <div
+                className="flex items-center gap-3 px-4 py-4"
+                style={{ background: 'rgba(6,15,30,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                {gpsActive && (
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-white/50 text-xs">{isFreeRoam ? t('hub_nearest_stop') : t('hub_gps_next_stop')}</div>
+                  <div className="text-white font-semibold text-sm truncate">{targetMission.title}</div>
+                </div>
+                {gpsActive && targetDist != null ? (
+                  <span
+                    className="text-sm font-bold px-3 py-1.5 rounded-full"
+                    style={{ background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
+                  >
+                    {formatDistance(targetDist)}
+                  </span>
+                ) : null}
+              </div>
+            )
           )}
         </div>,
         document.body

@@ -68,6 +68,8 @@
   "hub_progress_stops": "étapes terminées",
   "hub_up_next": "Prochaine étape",
   "hub_nearest_stop": "Arrêt le plus proche",
+  "hub_youre_here": "Vous y êtes ✓",
+  "hub_start_challenge": "Démarrer",
   "hub_nearby": "À proximité ✓",
   "hub_gps_active": "Position en direct active",
   "hub_gps_next_stop": "Prochaine étape :",

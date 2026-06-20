@@ -103,6 +103,7 @@ function TranslationSection({ value, onChange, fields }) {
 const EMPTY = {
   id: '', name: '', subtitle: '', description: '',
   duration_min: '1', duration_max: '2', difficulty: 'Moderate',
+  tour_type: 'sequential',
   price: 0, max_score: 0,
   gradient_from: '#1e3a8a', gradient_to: '#0e7490', accent_color: '#38bdf8',
   tags: [], kid_friendly: false, published: true, bypass_gps: false,
@@ -333,6 +334,31 @@ export default function TourEdit() {
               <option>Challenging</option>
             </select>
           </Field>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Tour Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { val: 'sequential', icon: '🧭', label: 'Sequential', desc: 'Fixed route — one stop unlocks the next, in order.' },
+                { val: 'free_roam', icon: '🗺️', label: 'Free Roam', desc: 'All stops open — players pick any stop, in any order.' },
+              ].map(opt => {
+                const active = (form.tour_type || 'sequential') === opt.val
+                return (
+                  <button key={opt.val} type="button" onClick={() => set('tour_type', opt.val)}
+                    className="text-left px-3.5 py-3 rounded-xl transition-colors"
+                    style={active
+                      ? { background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)' }
+                      : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-base leading-none">{opt.icon}</span>
+                      <span className={`text-sm font-semibold ${active ? 'text-white' : 'text-gray-300'}`}>{opt.label}</span>
+                    </div>
+                    <p className="text-gray-500 text-xs leading-snug">{opt.desc}</p>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">Tags</label>

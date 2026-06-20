@@ -12,8 +12,13 @@ import SuccessOverlay from './components/ui/SuccessOverlay'
 import { getDeviceId } from './lib/deviceId'
 
 function buildDefaultMissions(tour) {
+  // Free-roam tours unlock every stop at once; sequential tours unlock only the first.
+  const freeRoam = tour.tourType === 'free_roam'
   return tour.missions.reduce((acc, m, idx) => {
-    acc[m.id] = { status: idx === 0 ? 'unlocked' : 'locked', score: 0, completedAt: null, photoThumb: null }
+    acc[m.id] = {
+      status: freeRoam || idx === 0 ? 'unlocked' : 'locked',
+      score: 0, completedAt: null, photoThumb: null,
+    }
     return acc
   }, {})
 }
@@ -144,7 +149,10 @@ export default function App() {
   const handleMissionComplete = useCallback((missionId, photoThumb = null, penalty = 0) => {
     if (!activeTour) return
     const mission = activeTour.missions.find(m => m.id === missionId)
-    const nextMission = activeTour.missions.find(m => m.id === missionId + 1) ?? null
+    // Free-roam has no fixed "next" — the player picks from the hub.
+    const nextMission = activeTour.tourType === 'free_roam'
+      ? null
+      : activeTour.missions.find(m => m.id === missionId + 1) ?? null
     const earnedPoints = Math.max(0, mission.points - penalty)
 
     setAllProgress(prev => {
@@ -227,7 +235,9 @@ export default function App() {
   const handleSkipMission = useCallback((missionId, reason, note) => {
     if (!activeTour) return
     const mission = activeTour.missions.find(m => m.id === missionId)
-    const nextMission = activeTour.missions.find(m => m.id === missionId + 1) ?? null
+    const nextMission = activeTour.tourType === 'free_roam'
+      ? null
+      : activeTour.missions.find(m => m.id === missionId + 1) ?? null
 
     setAllProgress(prev => {
       const tourProg = prev[selectedTourId]

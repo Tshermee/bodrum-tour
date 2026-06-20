@@ -92,6 +92,9 @@
   "hub_stop_walk": "Walk",
   "hub_stop_walk_to_unlock": "to unlock",
   "hub_stop_skipped": "skipped",
+  "hub_free_roam_hint": "Choose your next stop",
+  "hub_rules_free_roam": "Explore in any order",
+  "hub_rules_free_roam_body": "This tour has no fixed route — tap any stop on the map or list to start its challenge, in whatever order you like.",
 
   "mission_back": "Back",
   "mission_test_mode": "Test mode — GPS check bypassed",

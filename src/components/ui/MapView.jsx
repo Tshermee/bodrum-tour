@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Polyline, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet-rotate' // patches L.Map with rotate/touchRotate options (no-op unless enabled)
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, LocateFixed } from 'lucide-react'
 import ErrorBoundary from '../ErrorBoundary'
 import { useMapTheme } from '../../hooks/useMapTheme'
+import { useDeviceHeading } from '../../hooks/useDeviceHeading'
 
 // CartoDB basemaps — dark for low light, light (Positron) for bright sunlight.
 const TILE_URLS = {
@@ -48,12 +49,17 @@ function makeIcon(label, bgColor, size = 28) {
   })
 }
 
-function makeUserIcon() {
+// `heading` (degrees, 0 = North) draws an iPhone-style direction cone behind
+// the dot. Pass null to show just the pulsing dot (no compass available).
+function makeUserIcon(heading = null) {
+  const cone = heading != null
+    ? `<div class="gps-cone" style="transform: translate(-50%, -50%) rotate(${heading}deg)"></div>`
+    : ''
   return L.divIcon({
-    html: `<div class="gps-dot-outer"><div class="gps-dot-inner"></div></div>`,
+    html: `<div class="gps-marker">${cone}<div class="gps-dot-outer"><div class="gps-dot-inner"></div></div></div>`,
     className: '',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    iconSize: [64, 64],
+    iconAnchor: [32, 32],
   })
 }
 
@@ -136,7 +142,6 @@ function MapFallback({ height }) {
  *   accentColor     — hex color for route line + unlocked markers
  *   singleMode      — show single emoji pin instead of numbered markers
  *   userPosition    — { lat, lng } | null — live GPS dot
- *   routePoints     — [[lat,lng], ...] | null — walking route polyline (e.g. from OSRM)
  *   extraFitPoints  — [[lat,lng], ...] — extra points to include when framing the map
  *                     (e.g. the user position, so a single-stop leg map frames both)
  *   showThemeToggle — render the light/dark toggle button (defaults to `interactive`)
@@ -149,11 +154,20 @@ export default function MapView({
   accentColor = '#38bdf8',
   singleMode = false,
   userPosition = null,
-  routePoints = null,
   extraFitPoints = null,
   showThemeToggle,
 }) {
   const { theme, toggle } = useMapTheme()
+  const { heading, requestHeading } = useDeviceHeading()
+  const mapRef = useRef(null)
+
+  function recenterOnUser() {
+    requestHeading() // iOS needs a gesture to grant compass access
+    const map = mapRef.current
+    if (map && mapIsAlive(map) && userLatLng) {
+      try { map.setView(userLatLng, Math.max(map.getZoom() ?? 16, 16), { animate: true }) } catch (_) {}
+    }
+  }
 
   // Defensively normalize every input — bad data is the most common crash source.
   const valid = Array.isArray(missions)
@@ -162,10 +176,6 @@ export default function MapView({
   if (valid.length === 0) return null
 
   const positions = valid.map(m => [Number(m.coordinates.lat), Number(m.coordinates.lng)])
-
-  const safeRoute = Array.isArray(routePoints)
-    ? routePoints.map(p => (Array.isArray(p) ? toLatLng(p[0], p[1]) : null)).filter(Boolean)
-    : null
 
   const userLatLng = userPosition ? toLatLng(userPosition.lat, userPosition.lng) : null
 
@@ -182,6 +192,7 @@ export default function MapView({
     <div style={{ position: 'relative', height, width: '100%', overflow: 'hidden', borderRadius: 'inherit' }}>
       <ErrorBoundary label="MapView" fallback={<MapFallback height={height} />}>
         <MapContainer
+          ref={mapRef}
           center={fitPositions[0]}
           zoom={14}
           style={{ height: '100%', width: '100%' }}
@@ -202,16 +213,6 @@ export default function MapView({
           {/* key forces a clean layer swap when the theme flips */}
           <TileLayer key={theme} url={TILE_URLS[theme] ?? TILE_URLS.dark} />
           <MapController fitPositions={fitPositions} />
-
-          {/* Stop-to-stop route line */}
-          {valid.length > 1 && (
-            <Polyline positions={positions} color={accentColor} weight={2.5} dashArray="7 5" opacity={0.6} />
-          )}
-
-          {/* Walking route (OSRM geometry or straight-line fallback) */}
-          {safeRoute && safeRoute.length > 1 && (
-            <Polyline positions={safeRoute} color="#3b82f6" weight={3.5} opacity={0.9} />
-          )}
 
           {/* Stop markers */}
           {valid.map((mission, idx) => {
@@ -237,9 +238,27 @@ export default function MapView({
             )
           })}
 
-          {/* Live GPS dot */}
-          {userLatLng && <Marker position={userLatLng} icon={makeUserIcon()} />}
+          {/* Live GPS dot + heading cone */}
+          {userLatLng && <Marker position={userLatLng} icon={makeUserIcon(heading)} />}
         </MapContainer>
+
+        {/* Recenter on my location */}
+        {interactive && userLatLng && (
+          <button
+            onClick={recenterOnUser}
+            aria-label="Center on my location"
+            style={{
+              position: 'absolute', right: '8px', bottom: '8px', zIndex: 500,
+              width: '34px', height: '34px', borderRadius: '9px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: 'none', cursor: 'pointer',
+              background: theme === 'dark' ? 'rgba(255,255,255,0.92)' : 'rgba(15,23,42,0.85)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+            }}
+          >
+            <LocateFixed className="w-4 h-4" style={{ color: theme === 'dark' ? '#0f172a' : '#f8fafc' }} />
+          </button>
+        )}
 
         {/* Light/dark toggle */}
         {enableToggle && (

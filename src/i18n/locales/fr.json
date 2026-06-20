@@ -92,6 +92,9 @@
   "hub_stop_walk": "Marchez",
   "hub_stop_walk_to_unlock": "pour débloquer",
   "hub_stop_skipped": "passée",
+  "hub_free_roam_hint": "Choisissez votre prochain arrêt",
+  "hub_rules_free_roam": "Explorez dans n'importe quel ordre",
+  "hub_rules_free_roam_body": "Ce circuit n'a pas d'itinéraire fixe — touchez n'importe quel arrêt sur la carte ou la liste pour démarrer son défi, dans l'ordre que vous voulez.",
 
   "mission_back": "Retour",
   "mission_test_mode": "Mode test — vérification GPS désactivée",

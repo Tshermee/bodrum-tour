@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
-import { useRoute } from '../../hooks/useRoute'
 import { getDistanceMeters, formatDistance } from '../../lib/geo'
 
 const GPS_RADIUS = 50 // metres
@@ -179,10 +178,15 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
 
   const { position: userPos } = useGeolocation()
 
+  const isFreeRoam = tour.tourType === 'free_roam'
   const missions = tour.missions
   const completed = missions.filter(m => tourProgress.missions[m.id]?.status === 'completed').length
   const progressPct = Math.round((completed / missions.length) * 100)
-  const nextMission = missions.find(m => tourProgress.missions[m.id]?.status === 'unlocked')
+  // Free-roam has no fixed "next" — the player picks. Keeping nextMission null
+  // makes the map show the full overview and hides the single-leg callouts.
+  const nextMission = isFreeRoam
+    ? null
+    : missions.find(m => tourProgress.missions[m.id]?.status === 'unlocked')
 
   // Distance from user to every stop (metres)
   const distances = useMemo(() => {
@@ -236,13 +240,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     }
     onOpenMission(missionId)
   }
-
-  // OSRM walking route: user → next unlocked stop
-  const routeTo = (gpsActive && nextMission?.coordinates) ? nextMission.coordinates : null
-  const { routePoints: osrmRoute } = useRoute(userPos, routeTo)
-  // While OSRM loads, show a straight dashed line as fallback
-  const routePoints = osrmRoute
-    ?? (userPos && routeTo ? [[userPos.lat, userPos.lng], [routeTo.lat, routeTo.lng]] : null)
 
   const nextDist = nextMission ? distances[nextMission.id] : null
 
@@ -372,6 +369,22 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             </div>
           )}
 
+          {/* Free-roam: no fixed next stop — invite the player to choose */}
+          {isFreeRoam && completed < missions.length && (
+            <div
+              className="flex items-center gap-2 px-3 py-2"
+              style={{ background: 'rgba(6,15,30,0.85)' }}
+            >
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: tour.accentColor }} />
+              <span className="text-white/70 text-xs font-semibold truncate">
+                {t('hub_free_roam_hint')}
+              </span>
+              <span className="ml-auto text-white/40 text-xs flex-shrink-0">
+                {t('hub_progress_of', { completed, total: missions.length })}
+              </span>
+            </div>
+          )}
+
           {/* Map + expand button — leg view when navigating, full overview when done */}
           <div className="relative">
             <MapView
@@ -382,7 +395,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               accentColor={tour.accentColor}
               singleMode={!!nextMission}
               userPosition={userPos}
-              routePoints={routePoints}
               extraFitPoints={nextMission && userPos ? [[userPos.lat, userPos.lng]] : null}
             />
             <button
@@ -479,7 +491,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               interactive={true}
               accentColor={tour.accentColor}
               userPosition={userPos}
-              routePoints={routePoints}
             />
             <button
               onClick={() => setFullscreen(false)}
@@ -590,7 +601,9 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             {/* Rules */}
             <div className="space-y-3 mb-6">
               {[
-                { icon: '📍', title: t('hub_rules_walk'), body: t('hub_rules_walk_body') },
+                isFreeRoam
+                  ? { icon: '🗺️', title: t('hub_rules_free_roam'), body: t('hub_rules_free_roam_body') }
+                  : { icon: '📍', title: t('hub_rules_walk'), body: t('hub_rules_walk_body') },
                 { icon: '📸', title: t('hub_rules_challenge'), body: t('hub_rules_challenge_body') },
                 { icon: '💡', title: t('hub_rules_hints'), body: t('hub_rules_hints_body') },
                 { icon: '⏭️', title: t('hub_rules_skip'), body: t('hub_rules_skip_body') },

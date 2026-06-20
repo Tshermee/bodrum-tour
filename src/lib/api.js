@@ -67,6 +67,7 @@ export function transformTour(raw, lang = 'en') {
     stops: stops.length,
     totalPossibleScore: stops.reduce((sum, s) => sum + (s.points || 0), 0),
     difficulty: (raw.difficulty || 'moderate').toLowerCase(),
+    tourType: raw.tour_type === 'free_roam' ? 'free_roam' : 'sequential',
     tags: raw.tags || [],
     price: Number(raw.price || 0),
     kidFriendly: raw.kid_friendly || false,

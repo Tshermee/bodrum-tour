@@ -92,6 +92,9 @@
   "hub_stop_walk": "Laufe",
   "hub_stop_walk_to_unlock": "zum Freischalten",
   "hub_stop_skipped": "übersprungen",
+  "hub_free_roam_hint": "Wähle deinen nächsten Stopp",
+  "hub_rules_free_roam": "Erkunde in beliebiger Reihenfolge",
+  "hub_rules_free_roam_body": "Diese Tour hat keine feste Route – tippe auf der Karte oder in der Liste auf einen beliebigen Stopp, um dessen Aufgabe zu starten.",
 
   "mission_back": "Zurück",
   "mission_test_mode": "Testmodus — GPS-Prüfung deaktiviert",

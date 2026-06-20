@@ -168,6 +168,37 @@
 }
 
 /* GPS live location dot (used inside Leaflet divIcon) */
+.gps-marker {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* iPhone-style "looking direction" cone fanning out from the GPS dot. */
+.gps-cone {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  transform-origin: 50% 50%;
+  transform: translate(-50%, -50%) rotate(0deg);
+  background: conic-gradient(
+    rgba(59, 130, 246, 0.55) 0deg,
+    rgba(59, 130, 246, 0) 30deg,
+    rgba(59, 130, 246, 0) 330deg,
+    rgba(59, 130, 246, 0.55) 360deg
+  );
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 7px, rgba(0, 0, 0, 0.65) 18px, transparent 32px);
+  mask: radial-gradient(circle at 50% 50%, #000 7px, rgba(0, 0, 0, 0.65) 18px, transparent 32px);
+  pointer-events: none;
+  z-index: 0;
+}
+
 .gps-dot-outer {
   width: 24px;
   height: 24px;
@@ -175,6 +206,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  z-index: 1;
 }
 
 .gps-dot-outer::before {

@@ -92,6 +92,9 @@
   "hub_stop_walk": "Kilitli açmak için",
   "hub_stop_walk_to_unlock": "yürüyün",
   "hub_stop_skipped": "atlandı",
+  "hub_free_roam_hint": "Sıradaki durağını seç",
+  "hub_rules_free_roam": "İstediğin sırada keşfet",
+  "hub_rules_free_roam_body": "Bu turun sabit bir rotası yok — haritadan veya listeden herhangi bir durağa dokunarak görevini istediğin sırada başlatabilirsin.",
 
   "mission_back": "Geri",
   "mission_test_mode": "Test modu — GPS kontrolü devre dışı",

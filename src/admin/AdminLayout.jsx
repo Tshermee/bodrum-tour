@@ -6,14 +6,17 @@ import {
   LogOut, Menu, X, ChevronRight, MapPin, SkipForward, Home
 } from 'lucide-react'
 
-const NAV = [
+const NAV_MAIN = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { path: '/tours', label: 'Tours', icon: Map },
   { path: '/purchases', label: 'Purchases', icon: ShoppingBag },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/skip-reports', label: 'Skip Reports', icon: SkipForward },
+]
+const NAV_CONFIG = [
   { path: '/welcome-config', label: 'Welcome Screen', icon: Home },
 ]
+const NAV = [...NAV_MAIN, ...NAV_CONFIG]
 
 export default function AdminLayout({ children }) {
   const [open, setOpen] = useState(false)
@@ -49,18 +52,32 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          {NAV.map(({ path, label, icon: Icon, exact }) => (
+        <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
+          {NAV_MAIN.map(({ path, label, icon: Icon, exact }) => (
             <Link key={path} to={path} onClick={() => setOpen(false)}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
                 ${isActive(path, exact)
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}>
-              <Icon className="w-5 h-5 flex-shrink-0" />
+              <Icon className="w-4 h-4 flex-shrink-0" />
               {label}
               {isActive(path, exact) && <ChevronRight className="w-4 h-4 ml-auto" />}
             </Link>
           ))}
+          <div className="pt-2 mt-2 border-t border-gray-800/60">
+            <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-widest uppercase text-gray-600">Config</p>
+            {NAV_CONFIG.map(({ path, label, icon: Icon, exact }) => (
+              <Link key={path} to={path} onClick={() => setOpen(false)}
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors
+                  ${isActive(path, exact)
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-400 hover:text-white hover:bg-gray-800'}`}>
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                {label}
+                {isActive(path, exact) && <ChevronRight className="w-4 h-4 ml-auto" />}
+              </Link>
+            ))}
+          </div>
         </nav>
 
         {/* Sign out */}

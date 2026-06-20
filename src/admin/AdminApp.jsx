@@ -9,6 +9,7 @@ import TourEdit from './pages/TourEdit'
 import Stops from './pages/Stops'
 import StopEdit from './pages/StopEdit'
 import Purchases from './pages/Purchases'
+import DiscountCodes from './pages/DiscountCodes'
 import Analytics from './pages/Analytics'
 import SkipReports from './pages/SkipReports'
 import WelcomeConfig from './pages/WelcomeConfig'
@@ -62,6 +63,7 @@ export default function AdminApp() {
           <Route path="/tours/:tourId/stops/new" element={<StopEdit />} />
           <Route path="/tours/:tourId/stops/:id/edit" element={<StopEdit />} />
           <Route path="/purchases" element={<Purchases />} />
+          <Route path="/discounts" element={<DiscountCodes />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/skip-reports" element={<SkipReports />} />
           <Route path="/welcome-config" element={<WelcomeConfig />} />

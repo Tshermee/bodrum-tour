@@ -114,7 +114,7 @@ export async function fetchTourWithStops(tourId) {
 
 // ─── Purchases ────────────────────────────────────────────────────────────────
 
-export async function createPurchase({ tourId, teamName, email, amount, deviceId }) {
+export async function createPurchase({ tourId, teamName, email, amount, deviceId, discountCode, discountAmount }) {
   const { data, error } = await supabase
     .from('purchases')
     .insert({
@@ -124,11 +124,65 @@ export async function createPurchase({ tourId, teamName, email, amount, deviceId
       amount,
       device_id: deviceId,
       status: 'completed',
+      discount_code: discountCode || null,
+      discount_amount: discountAmount || 0,
     })
     .select()
     .single()
   if (error) throw error
   return data
+}
+
+// ─── Discount codes ─────────────────────────────────────────────────────────
+
+// Validate a code at checkout (anon, reads only active codes via RLS).
+// Returns { code, discount_type, amount } or null if not found/inactive.
+export async function fetchDiscountCode(code) {
+  const clean = (code || '').trim().toUpperCase()
+  if (!clean) return null
+  const { data, error } = await supabase
+    .from('discount_codes')
+    .select('code, discount_type, amount')
+    .eq('code', clean)
+    .eq('active', true)
+    .maybeSingle()
+  if (error) throw error
+  return data ?? null
+}
+
+// Given a price and a discount row, return { final, saved }.
+export function applyDiscount(price, dc) {
+  if (!dc) return { final: price, saved: 0 }
+  const saved = dc.discount_type === 'fixed'
+    ? Math.min(price, Number(dc.amount) || 0)
+    : price * (Math.min(100, Math.max(0, Number(dc.amount) || 0)) / 100)
+  const rounded = Math.round(saved * 100) / 100
+  return { final: Math.max(0, Math.round((price - rounded) * 100) / 100), saved: rounded }
+}
+
+export async function adminFetchDiscountCodes() {
+  const { data, error } = await supabaseAdmin
+    .from('discount_codes')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function adminUpsertDiscountCode(dc) {
+  const payload = { ...dc, code: (dc.code || '').trim().toUpperCase(), updated_at: new Date().toISOString() }
+  const { data, error } = await supabaseAdmin
+    .from('discount_codes')
+    .upsert(payload)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function adminDeleteDiscountCode(id) {
+  const { error } = await supabaseAdmin.from('discount_codes').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function checkPurchase(tourId, deviceId) {

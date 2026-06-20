@@ -3,13 +3,14 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   LayoutDashboard, Map, ShoppingBag, BarChart3,
-  LogOut, Menu, X, ChevronRight, MapPin, SkipForward, Home, BookOpen, Trophy
+  LogOut, Menu, X, ChevronRight, MapPin, SkipForward, Home, BookOpen, Trophy, Tag
 } from 'lucide-react'
 
 const NAV_MAIN = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { path: '/tours', label: 'Tours', icon: Map },
   { path: '/purchases', label: 'Purchases', icon: ShoppingBag },
+  { path: '/discounts', label: 'Discounts', icon: Tag },
   { path: '/analytics', label: 'Analytics', icon: BarChart3 },
   { path: '/skip-reports', label: 'Skip Reports', icon: SkipForward },
 ]

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, MapPin, ExternalLink, BookOpen, ChevronDown, ChevronUp, Maximize2, X, Navigation2, SkipForward, Volume2, Pause } from 'lucide-react'
+import { ArrowLeft, MapPin, BookOpen, ChevronDown, ChevronUp, Maximize2, X, SkipForward, Volume2, Pause } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters } from '../../lib/geo'
@@ -32,37 +32,36 @@ function AudioGuide({ audioUrl, accentColor }) {
     setProgress(audioRef.current.currentTime / audioRef.current.duration)
   }
 
+  const { t } = useTranslation()
   return (
-    <div className="px-4 pb-0 pt-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-      <div
-        className="flex items-center gap-3 py-3 px-4 rounded-xl mb-3"
-        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+    <div
+      className="flex items-center gap-3 py-3 px-4 rounded-xl mb-3"
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+    >
+      <button
+        onClick={toggle}
+        className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
+        style={{ background: `${accentColor}22`, border: `1px solid ${accentColor}33` }}
       >
-        <button
-          onClick={toggle}
-          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
-          style={{ background: `${accentColor}22`, border: `1px solid ${accentColor}33` }}
-        >
-          {playing
-            ? <Pause className="w-4 h-4" style={{ color: accentColor }} />
-            : <Volume2 className="w-4 h-4" style={{ color: accentColor }} />}
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="text-white font-medium text-sm">Audio Guide</div>
-          <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{ width: `${Math.round(progress * 100)}%`, background: accentColor }}
-            />
-          </div>
+        {playing
+          ? <Pause className="w-4 h-4" style={{ color: accentColor }} />
+          : <Volume2 className="w-4 h-4" style={{ color: accentColor }} />}
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="text-white font-medium text-sm">🔊 {t('mission_listen')}</div>
+        <div className="mt-1.5 h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${Math.round(progress * 100)}%`, background: accentColor }}
+          />
         </div>
-        <audio
-          ref={audioRef}
-          src={audioUrl}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={() => { setPlaying(false); setProgress(0) }}
-        />
       </div>
+      <audio
+        ref={audioRef}
+        src={audioUrl}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={() => { setPlaying(false); setProgress(0) }}
+      />
     </div>
   )
 }
@@ -105,11 +104,6 @@ export default function MissionScreen({
     onSkip(mission.id, skipReason, skipNote)
     setShowSkipDialog(false)
   }
-
-  // Opens Google Maps in walking-navigation mode (works on iOS + Android)
-  const navUrl = mission.coordinates
-    ? `https://www.google.com/maps/dir/?api=1&destination=${mission.coordinates.lat},${mission.coordinates.lng}&travelmode=walking`
-    : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mission.mapsQuery)}&travelmode=walking`
 
   const handleComplete = (photoThumb = null, penalty = 0) => {
     if (!isCompleted && canComplete) onComplete(mission.id, photoThumb, penalty)
@@ -199,48 +193,22 @@ export default function MissionScreen({
           </div>
         )}
 
-        {/* Navigation button */}
-        <div className="px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-          <a
-            href={navUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 py-3 px-4 rounded-xl active:scale-[0.98] transition-transform"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: `${mission.accentColor}22` }}
-            >
-              <Navigation2 className="w-4 h-4" style={{ color: mission.accentColor }} />
-            </div>
-            <div className="flex-1">
-              <div className="text-white font-medium text-sm">{t('mission_navigation')}</div>
-              <div className="text-white/40 text-xs">{mission.location}</div>
-            </div>
-            <ExternalLink className="w-4 h-4 text-white/30 flex-shrink-0" />
-          </a>
-        </div>
-
-        {/* Audio guide */}
-        {mission.audioUrl && (
-          <AudioGuide audioUrl={mission.audioUrl} accentColor={mission.accentColor} />
-        )}
-
-        {/* Story */}
+        {/* Story (read) + Audio guide (listen) — merged into one section */}
         <div className="px-4 py-4">
           <button
             onClick={() => setStoryExpanded(v => !v)}
             className="w-full flex items-center gap-3 py-3 px-4 rounded-xl text-left active:scale-[0.99] transition-transform"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
               style={{ background: 'rgba(251, 191, 36, 0.15)' }}>
-              <BookOpen className="w-4 h-4 text-amber-400" />
+              {mission.audioUrl ? '📖🔊' : <BookOpen className="w-4 h-4 text-amber-400" />}
             </div>
             <div className="flex-1">
               <div className="text-white font-medium text-sm">{t('mission_story')}</div>
-              <div className="text-white/40 text-xs">{storyExpanded ? t('mission_story_hide') : t('mission_story_read')}</div>
+              <div className="text-white/40 text-xs">
+                {mission.audioUrl ? t('mission_story_read_listen') : (storyExpanded ? t('mission_story_hide') : t('mission_story_read'))}
+              </div>
             </div>
             {storyExpanded
               ? <ChevronUp className="w-4 h-4 text-white/30" />
@@ -248,11 +216,16 @@ export default function MissionScreen({
           </button>
 
           {storyExpanded && (
-            <div
-              className="mt-3 px-4 py-4 rounded-xl text-white/70 text-sm leading-relaxed animate-fade-in"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
-            >
-              {mission.story}
+            <div className="mt-3 animate-fade-in">
+              {mission.audioUrl && (
+                <AudioGuide audioUrl={mission.audioUrl} accentColor={mission.accentColor} />
+              )}
+              <div
+                className="px-4 py-4 rounded-xl text-white/70 text-sm leading-relaxed"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                {mission.story}
+              </div>
             </div>
           )}
         </div>
@@ -446,19 +419,6 @@ export default function MissionScreen({
             >
               {mission.title}
             </div>
-          </div>
-          {/* Navigation CTA */}
-          <div className="px-4 py-3" style={{ background: 'rgba(6,15,30,0.95)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <a
-              href={navUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-white active:scale-[0.98] transition-transform"
-              style={{ background: `linear-gradient(135deg, ${mission.gradient[0]}, ${mission.gradient[1]})` }}
-            >
-              <Navigation2 className="w-5 h-5" />
-              {t('mission_navigation')}
-            </a>
           </div>
         </div>,
         document.body

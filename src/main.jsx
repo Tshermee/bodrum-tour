@@ -5,6 +5,18 @@ import './index.css'
 import './i18n/index.js'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
+// After a new deploy, the loaded page may try to import a code-split chunk whose
+// filename changed — it 404s and React renders nothing (blank/blue screen). Vite
+// fires `vite:preloadError`; do a one-time reload to fetch the fresh chunks.
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', () => {
+    if (!sessionStorage.getItem('vite-preload-reloaded')) {
+      sessionStorage.setItem('vite-preload-reloaded', '1')
+      window.location.reload()
+    }
+  })
+}
+
 const isAdmin = window.location.pathname.includes('/admin')
 
 async function boot() {

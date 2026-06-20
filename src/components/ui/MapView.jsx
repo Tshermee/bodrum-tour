@@ -30,6 +30,17 @@ function toLatLng(lat, lng) {
   return isValidLatLng(a, b) ? [a, b] : null
 }
 
+// Initial bearing (degrees, 0 = North, clockwise) from point A to point B.
+// Used as a fallback "walk this way" direction when the device compass is
+// unavailable (desktop, denied permission, or browsers that block the sensor).
+function bearingBetween([lat1, lng1], [lat2, lng2]) {
+  const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180
+  const Δλ = (lng2 - lng1) * Math.PI / 180
+  const y = Math.sin(Δλ) * Math.cos(φ2)
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360
+}
+
 function makeIcon(label, bgColor, size = 28) {
   const fs = size <= 24 ? 10 : 12
   return L.divIcon({
@@ -191,6 +202,14 @@ export default function MapView({
   // Frame the map around the stops plus any extra points (e.g. the user).
   const fitPositions = [...positions, ...safeExtra]
 
+  // Direction cone: use the live device compass when we have it; otherwise point
+  // toward the target stop (the geofence stop, or the only stop shown) so there's
+  // always a "which way" indicator on the user dot.
+  const targetLatLng = geoLatLng ?? (valid.length === 1 ? positions[0] : null)
+  const effectiveHeading = heading != null
+    ? heading
+    : (userLatLng && targetLatLng ? Math.round(bearingBetween(userLatLng, targetLatLng)) : null)
+
   const enableToggle = showThemeToggle ?? interactive
 
   return (
@@ -254,8 +273,8 @@ export default function MapView({
             )
           })}
 
-          {/* Live GPS dot + heading cone */}
-          {userLatLng && <Marker position={userLatLng} icon={makeUserIcon(heading)} />}
+          {/* Live GPS dot + heading cone (compass when available, else toward target) */}
+          {userLatLng && <Marker position={userLatLng} icon={makeUserIcon(effectiveHeading)} />}
         </MapContainer>
 
         {/* Recenter on my location */}

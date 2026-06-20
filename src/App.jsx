@@ -300,17 +300,20 @@ export default function App() {
     setScreen('hub')
   }, [activeTour, selectedTourId, setAllProgress, teamName])
 
-  const handlePurchase = useCallback(async (tourId) => {
+  const handlePurchase = useCallback(async (tourId, discount = null) => {
     // Optimistic local update
     setPurchases(prev => ({ ...prev, [tourId]: true }))
     const tour = tours.find(t => t.id === tourId)
+    const amount = discount?.finalAmount ?? tour?.price ?? 0
     // Sync to Supabase in background
     try {
       const purchase = await createPurchase({
         tourId,
         teamName,
-        amount: tour?.price ?? 0,
+        amount,
         deviceId: getDeviceId(),
+        discountCode: discount?.discountCode,
+        discountAmount: discount?.discountAmount,
       })
       purchaseIdRef.current[tourId] = purchase.id
     } catch (e) {

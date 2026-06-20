@@ -1,11 +1,32 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, CheckCircle2, Clock, MapPin, Star, Loader2, Lock, Zap } from 'lucide-react'
+import { X, CheckCircle2, Clock, MapPin, Star, Loader2, Lock, Zap, Tag } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { fetchDiscountCode, applyDiscount } from '../../lib/api'
 
 export default function PurchaseModal({ tour, onPurchase, onClose }) {
   const { t } = useTranslation()
   const [step, setStep] = useState('preview') // 'preview' | 'processing' | 'success'
+  const [code, setCode] = useState('')
+  const [applied, setApplied] = useState(null) // validated discount row
+  const [checking, setChecking] = useState(false)
+  const [codeError, setCodeError] = useState('')
+
+  const { final, saved } = applyDiscount(tour.price, applied)
+
+  const handleApply = async () => {
+    setCodeError('')
+    setChecking(true)
+    try {
+      const dc = await fetchDiscountCode(code)
+      if (!dc) { setApplied(null); setCodeError(t('purchase_discount_invalid')) }
+      else setApplied(dc)
+    } catch {
+      setApplied(null); setCodeError(t('purchase_discount_invalid'))
+    } finally {
+      setChecking(false)
+    }
+  }
 
   const SHORT_FEATURES = [
     `📍 ${t('purchase_feature_route')}`,
@@ -30,7 +51,7 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
     setTimeout(() => {
       setStep('success')
       setTimeout(() => {
-        onPurchase(tour.id)
+        onPurchase(tour.id, applied ? { discountCode: applied.code, discountAmount: saved, finalAmount: final } : null)
         onClose()
       }, 1600)
     }, 1800)
@@ -105,11 +126,45 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
             {/* Price */}
             <div className="text-center mb-5">
               <div className="text-white/40 text-xs uppercase tracking-widest mb-1">{t('purchase_one_time')}</div>
-              <div className="flex items-baseline justify-center gap-1">
-                <span className="text-white/60 text-2xl font-light">€</span>
-                <span className="text-white font-black text-6xl leading-none">{tour.price}</span>
+              <div className="flex items-baseline justify-center gap-2">
+                {saved > 0 && (
+                  <span className="text-white/30 text-2xl font-light line-through">€{tour.price}</span>
+                )}
+                <div className="flex items-baseline gap-1">
+                  <span className="text-white/60 text-2xl font-light">€</span>
+                  <span className="text-white font-black text-6xl leading-none">{final}</span>
+                </div>
               </div>
-              <div className="text-white/30 text-xs mt-1">{t('purchase_price_footer')}</div>
+              {saved > 0
+                ? <div className="text-green-400 text-xs mt-1 font-semibold">{t('purchase_discount_saved', { amount: saved })}</div>
+                : <div className="text-white/30 text-xs mt-1">{t('purchase_price_footer')}</div>}
+            </div>
+
+            {/* Discount code */}
+            <div className="mb-5">
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-2 rounded-xl px-3"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${applied ? 'rgba(34,197,94,0.4)' : 'rgba(255,255,255,0.1)'}` }}>
+                  <Tag className="w-4 h-4 flex-shrink-0" style={{ color: applied ? '#4ade80' : 'rgba(255,255,255,0.4)' }} />
+                  <input
+                    value={code}
+                    onChange={e => { setCode(e.target.value); setApplied(null); setCodeError('') }}
+                    placeholder={t('purchase_discount_placeholder')}
+                    className="flex-1 bg-transparent py-2.5 text-white text-sm placeholder-white/30 focus:outline-none uppercase"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  disabled={checking || !code.trim()}
+                  className="px-4 rounded-xl text-sm font-semibold text-white disabled:opacity-40 active:scale-95 transition-transform"
+                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}
+                >
+                  {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : t('purchase_discount_apply')}
+                </button>
+              </div>
+              {codeError && <p className="text-red-400/80 text-xs mt-1.5 ml-1">{codeError}</p>}
+              {applied && <p className="text-green-400 text-xs mt-1.5 ml-1">✓ {applied.code}</p>}
             </div>
 
             {/* Features */}
@@ -140,7 +195,7 @@ export default function PurchaseModal({ tour, onPurchase, onClose }) {
               }}
             >
               <Lock className="w-4 h-4" />
-              {t('purchase_button', { price: tour.price })}
+              {t('purchase_button', { price: final })}
             </button>
 
             <p className="text-center text-white/20 text-xs mt-3">

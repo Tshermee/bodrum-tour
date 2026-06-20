@@ -29,6 +29,9 @@ export default defineConfig({
         // "Reload" banner's controllerchange-based reload actually fires.
         // (skipWaiting stays off — prompt mode controls when we activate.)
         clientsClaim: true,
+        // Delete previous-build precaches on activation so stale code-split
+        // chunks can't 404 after an update (the post-update blank screen).
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {

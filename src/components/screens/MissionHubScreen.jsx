@@ -2,8 +2,8 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Star, Lock, CheckCircle2, ChevronRight, RotateCcw,
-  Trophy, Zap, ArrowLeft, MapPin, Navigation2, Maximize2, X, SkipForward,
+  Star, Lock, CheckCircle2, ChevronRight, ChevronDown, ChevronUp, RotateCcw,
+  Trophy, ArrowLeft, MapPin, Navigation2, Maximize2, X, SkipForward,
 } from 'lucide-react'
 import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -160,6 +160,49 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
   )
 }
 
+// The active stop, shown prominently above the map with the start CTA baked in.
+// Styled to match the dark stop rows (not the gradient header) but a touch richer.
+function CurrentStopCard({ mission, index, distance, arrived, gpsActive, onOpen }) {
+  const { t } = useTranslation()
+  const accent = mission.accentColor
+  return (
+    <button
+      onClick={() => onOpen(mission.id)}
+      className="w-full text-left rounded-2xl p-4 flex items-center gap-4 active:scale-[0.98] transition-transform"
+      style={arrived
+        ? { background: 'linear-gradient(135deg, rgba(22,163,74,0.18), rgba(34,197,94,0.10))', border: '1px solid rgba(34,197,94,0.5)', boxShadow: '0 0 22px rgba(34,197,94,0.25)' }
+        : { background: 'rgba(255,255,255,0.05)', border: `1px solid ${accent}55`, boxShadow: `0 0 16px ${accent}1f` }}
+    >
+      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+        style={{ background: arrived ? 'rgba(34,197,94,0.2)' : `${accent}22`, border: `1px solid ${arrived ? 'rgba(34,197,94,0.35)' : `${accent}33`}` }}>
+        {mission.emoji}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">{t('mission_stop')} {index + 1}</span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+            style={arrived ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: `${accent}22`, color: accent }}>
+            {arrived ? t('hub_here') : t('hub_next')}
+          </span>
+        </div>
+        <div className="text-white font-semibold text-sm truncate">{mission.title}</div>
+        <div className="text-white/50 text-xs truncate mt-0.5">{mission.location}</div>
+      </div>
+      <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+        {gpsActive && distance != null && (
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+            style={arrived ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}>
+            {arrived ? t('hub_nearby') : formatDistance(distance)}
+          </span>
+        )}
+        <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color: arrived ? '#4ade80' : accent }}>
+          {t('hub_start_challenge')} <ChevronRight className="w-4 h-4" />
+        </span>
+      </div>
+    </button>
+  )
+}
+
 export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenMission, onBackToSelect, onResetTour }) {
   const { t, i18n } = useTranslation()
   const [showReset, setShowReset] = useState(false)
@@ -168,6 +211,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   const [showRules, setShowRules] = useState(false)
   const [arrivedTarget, setArrivedTarget] = useState(false)
   const [rulesCfg, setRulesCfg] = useState(null)
+  const [showDone, setShowDone] = useState(false)
   const prevNearby = useRef(new Set())
 
   // Show rules the first time a user enters a new tour
@@ -224,6 +268,14 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     return best ?? incomplete[0]
   })()
   const targetDist = targetMission ? distances[targetMission.id] : null
+
+  // Journey progression: done stops (collapsed above), the current/target stop
+  // (prominent), and everything still ahead ("Coming up").
+  const currentStop = targetMission
+  const doneStops = missions.filter(m => tourProgress.missions[m.id]?.status === 'completed')
+  const comingUp = missions.filter(m =>
+    tourProgress.missions[m.id]?.status !== 'completed' && m.id !== currentStop?.id
+  )
 
   // "You're here" state with hysteresis: enter the zone at GPS_RADIUS, only drop
   // out once clearly beyond it (+15 m) so GPS jitter doesn't flicker the affordance.
@@ -345,41 +397,53 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           </div>
         </div>
 
-        {/* Up next / nearest stop callout — with live distance */}
-        {targetMission && (
-          <button
-            onClick={() => handleOpenMission(targetMission.id)}
-            className="mt-4 w-full flex items-center gap-3 px-4 py-3 rounded-xl active:scale-[0.98] transition-transform"
-            style={{
-              background: `linear-gradient(135deg, ${targetMission.gradient[0]}cc, ${targetMission.gradient[1]}cc)`,
-              border: `1px solid ${targetMission.accentColor}44`,
-              boxShadow: `0 4px 16px ${targetMission.accentColor}22`,
-            }}
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.15)' }}>
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="text-white/60 text-xs">{isFreeRoam ? t('hub_nearest_stop') : t('hub_up_next')}</div>
-              <div className="text-white font-semibold text-sm">{targetMission.title}</div>
-            </div>
-            {gpsActive && targetDist != null ? (
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                targetDist <= GPS_RADIUS
-                  ? 'bg-green-500/25 text-green-300'
-                  : 'bg-amber-500/20 text-amber-300'
-              }`}>
-                {targetDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(targetDist)}
-              </span>
-            ) : (
-              <ChevronRight className="w-5 h-5 text-white/60" />
-            )}
-          </button>
-        )}
       </div>
 
-      {/* ── Current-leg map (you → next stop) ───────────────── */}
+      {/* ── Done so far (collapsed, above the current step) ──── */}
+      {doneStops.length > 0 && (
+        <div className="flex-shrink-0 mx-4 mt-3">
+          <button
+            onClick={() => setShowDone(v => !v)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl active:scale-[0.99] transition-transform"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <CheckCircle2 className="w-4 h-4 text-green-400/70 flex-shrink-0" />
+            <span className="text-white/55 text-xs font-semibold tracking-widest uppercase flex-1 text-left">
+              {t('hub_done')} · {doneStops.length}
+            </span>
+            {showDone ? <ChevronUp className="w-4 h-4 text-white/35" /> : <ChevronDown className="w-4 h-4 text-white/35" />}
+          </button>
+          {showDone && (
+            <div className="flex flex-col gap-2 mt-2">
+              {doneStops.map(m => (
+                <CompactMissionCard
+                  key={m.id}
+                  mission={m}
+                  progress={tourProgress.missions[m.id]}
+                  index={missions.findIndex(x => x.id === m.id)}
+                  onOpen={handleOpenMission}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Current step (active stop, CTA integrated) ───────── */}
+      {currentStop && (
+        <div className="flex-shrink-0 mx-4 mt-3">
+          <CurrentStopCard
+            mission={currentStop}
+            index={missions.findIndex(m => m.id === currentStop.id)}
+            distance={targetDist}
+            arrived={arrivedTarget}
+            gpsActive={gpsActive}
+            onOpen={handleOpenMission}
+          />
+        </div>
+      )}
+
+      {/* ── Map (you → current stop) ─────────────────────────── */}
       <div className="flex-shrink-0 mx-4 mt-3">
         <div
           className="rounded-2xl overflow-hidden"
@@ -389,15 +453,15 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               target + distance, so the map carries no duplicate text label. */}
           <div className="relative">
             <MapView
-              missions={nextMission ? [nextMission] : missions}
+              missions={currentStop ? [currentStop] : missions}
               missionProgress={tourProgress.missions}
-              height={nextMission ? 240 : 190}
+              height={currentStop ? 240 : 190}
               interactive={true}
               accentColor={tour.accentColor}
-              singleMode={!!nextMission}
+              singleMode={!!currentStop}
               userPosition={userPos}
-              extraFitPoints={nextMission && userPos ? [[userPos.lat, userPos.lng]] : null}
-              geofenceStop={targetMission?.coordinates || null}
+              extraFitPoints={currentStop && userPos ? [[userPos.lat, userPos.lng]] : null}
+              geofenceStop={currentStop?.coordinates || null}
               geofenceActive={arrivedTarget}
             />
             <button
@@ -441,40 +505,29 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
         </div>
       )}
 
-      {/* ── Mission list ────────────────────────────────────── */}
+      {/* ── Coming up (stops after the current one) ──────────── */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-safe">
-        <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3 px-1">
-          {t('hub_all_stops')}
-        </div>
-        <div className="flex flex-col gap-2.5 stagger-children">
-          {missions.map((mission, idx) => {
-            const prog = tourProgress.missions[mission.id]
-            // Done or skipped stops collapse to a slim row.
-            if (prog?.status === 'completed') {
-              return (
-                <CompactMissionCard
+        {comingUp.length > 0 && (
+          <>
+            <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3 px-1">
+              {t('hub_coming_up')}
+            </div>
+            <div className="flex flex-col gap-2.5 stagger-children">
+              {comingUp.map(mission => (
+                <MissionCard
                   key={mission.id}
                   mission={mission}
-                  progress={prog}
-                  index={idx}
+                  progress={tourProgress.missions[mission.id]}
+                  index={missions.findIndex(m => m.id === mission.id)}
                   onOpen={handleOpenMission}
+                  distance={distances[mission.id]}
+                  gpsActive={gpsActive}
+                  isTarget={false}
                 />
-              )
-            }
-            return (
-              <MissionCard
-                key={mission.id}
-                mission={mission}
-                progress={prog}
-                index={idx}
-                onOpen={handleOpenMission}
-                distance={distances[mission.id]}
-                gpsActive={gpsActive}
-                isTarget={mission.id === targetMission?.id}
-              />
-            )
-          })}
-        </div>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="mt-4 px-1 text-center">
           <p className="text-white/20 text-xs">

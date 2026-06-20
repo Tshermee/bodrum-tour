@@ -80,6 +80,8 @@
   "hub_gps_next_stop": "Nächster Stopp:",
   "hub_gps_inactive": "GPS aktivieren für Live-Tracking & Stopp-Freischaltung",
   "hub_all_stops": "Alle Stopps",
+  "hub_coming_up": "Als Nächstes",
+  "hub_done": "Erledigt",
   "hub_reset_confirm_title": "Diese Tour neu starten?",
   "hub_reset_confirm_text": "Der Fortschritt für {{name}} wird zurückgesetzt. Deine gesamten Lebenszeitpunkte bleiben erhalten.",
   "hub_reset_cancel": "Abbrechen",

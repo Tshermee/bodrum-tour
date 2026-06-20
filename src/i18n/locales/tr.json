@@ -80,6 +80,8 @@
   "hub_gps_next_stop": "Sonraki durak:",
   "hub_gps_inactive": "Canlı takip ve durak kilidi açma için GPS'i etkinleştirin",
   "hub_all_stops": "Tüm Duraklar",
+  "hub_coming_up": "Sırada",
+  "hub_done": "Tamamlandı",
   "hub_reset_confirm_title": "Bu turu yeniden başlat?",
   "hub_reset_confirm_text": "{{name}} turu için ilerlemeniz sıfırlanacak. Kazanılan ömür boyu puanlarınız korunur.",
   "hub_reset_cancel": "İptal",

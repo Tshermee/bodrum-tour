@@ -80,6 +80,8 @@
   "hub_gps_next_stop": "Next stop:",
   "hub_gps_inactive": "Enable GPS for live tracking & stop unlocks",
   "hub_all_stops": "All Stops",
+  "hub_coming_up": "Coming up",
+  "hub_done": "Done",
   "hub_reset_confirm_title": "Restart this tour?",
   "hub_reset_confirm_text": "Progress for {{name}} will be reset. Your earned lifetime points are kept.",
   "hub_reset_cancel": "Cancel",

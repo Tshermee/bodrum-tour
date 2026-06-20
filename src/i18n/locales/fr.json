@@ -80,6 +80,8 @@
   "hub_gps_next_stop": "Prochaine étape :",
   "hub_gps_inactive": "Activez le GPS pour le suivi en direct et le déblocage des étapes",
   "hub_all_stops": "Toutes les étapes",
+  "hub_coming_up": "À venir",
+  "hub_done": "Terminé",
   "hub_reset_confirm_title": "Redémarrer ce circuit ?",
   "hub_reset_confirm_text": "La progression pour {{name}} sera réinitialisée. Vos points à vie sont conservés.",
   "hub_reset_cancel": "Annuler",

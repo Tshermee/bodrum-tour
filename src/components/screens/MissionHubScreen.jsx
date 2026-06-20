@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
-  Star, Lock, CheckCircle2, ChevronRight, RotateCcw,
-  Trophy, Zap, ArrowLeft, MapPin, Navigation2, Maximize2, X, SkipForward,
+  Star, Lock, CheckCircle2, ChevronRight, ChevronDown, ChevronUp, RotateCcw,
+  Trophy, ArrowLeft, MapPin, Navigation2, Maximize2, X, SkipForward,
 } from 'lucide-react'
 import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
@@ -50,7 +50,7 @@ function CompactMissionCard({ mission, progress, index, onOpen }) {
   )
 }
 
-function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, isTarget }) {
+function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, isTarget, hint }) {
   const { t } = useTranslation()
   const status = progress?.status ?? 'locked'
   const isLocked    = status === 'locked'
@@ -63,11 +63,10 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
 
   return (
     <button
-      onClick={() => !isLocked && onOpen(mission.id)}
-      disabled={isLocked}
+      onClick={() => onOpen(mission.id)}
       className={`
         w-full text-left rounded-2xl overflow-hidden transition-all duration-200
-        ${isLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}
+        ${isLocked ? 'opacity-60' : 'active:scale-[0.98]'}
         ${isUnlocked && !isNearby ? 'glow-cyan' : ''}
       `}
       style={isSkipped ? { opacity: 0.65 } : isUnlocked && isNearby ? {
@@ -117,7 +116,7 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
         {/* Text */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-white/40 text-xs font-semibold tracking-wider">STOP {index + 1}</span>
+            <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">{t('mission_stop')} {index + 1}</span>
             {isUnlocked && isNearby && (
               <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-400">
                 {t('hub_here')}
@@ -156,6 +155,15 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
           )}
         </div>
       </div>
+
+      {/* Subtle reason it can't start yet (sequence-locked or too far) */}
+      {hint && (
+        <div className="flex items-center gap-1.5 px-4 py-2 animate-fade-in"
+          style={{ background: 'rgba(245,158,11,0.15)' }}>
+          <Lock className="w-3 h-3 text-amber-300/80 flex-shrink-0" />
+          <span className="text-amber-200/90 text-xs">{hint}</span>
+        </div>
+      )}
     </button>
   )
 }
@@ -164,11 +172,11 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   const { t, i18n } = useTranslation()
   const [showReset, setShowReset] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [blockedHint, setBlockedHint] = useState(null) // { id, message } — why a tapped stop can't start yet
   const [showRules, setShowRules] = useState(false)
   const [arrivedTarget, setArrivedTarget] = useState(false)
   const [rulesCfg, setRulesCfg] = useState(null)
-  const prevNearby = useRef(new Set())
+  const [showDone, setShowDone] = useState(false)
 
   // Show rules the first time a user enters a new tour
   useEffect(() => {
@@ -225,6 +233,14 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   })()
   const targetDist = targetMission ? distances[targetMission.id] : null
 
+  // Journey progression: done stops (collapsed above), the current/target stop
+  // (prominent), and everything still ahead ("Coming up").
+  const currentStop = targetMission
+  const doneStops = missions.filter(m => tourProgress.missions[m.id]?.status === 'completed')
+  const comingUp = missions.filter(m =>
+    tourProgress.missions[m.id]?.status !== 'completed' && m.id !== currentStop?.id
+  )
+
   // "You're here" state with hysteresis: enter the zone at GPS_RADIUS, only drop
   // out once clearly beyond it (+15 m) so GPS jitter doesn't flicker the affordance.
   useEffect(() => {
@@ -236,48 +252,38 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     })
   }, [targetDist])
 
-  // Fire toast when user enters the 50m radius of an unlocked stop
+  // Auto-dismiss the "why you can't start this yet" hint after 4 s
   useEffect(() => {
-    if (!userPos) return
-    missions.forEach(m => {
-      if (tourProgress.missions[m.id]?.status !== 'unlocked') return
-      const dist = distances[m.id]
-      if (dist == null) return
-      const nearby = dist <= GPS_RADIUS
-      if (nearby && !prevNearby.current.has(m.id)) {
-        setToast({ text: t('hub_toast_arrive', { name: m.title }), subText: t('hub_toast_arrive_sub'), type: 'arrive' })
-        prevNearby.current.add(m.id)
-      } else if (!nearby) {
-        prevNearby.current.delete(m.id)
-      }
-    })
-  }, [distances, missions, tourProgress, userPos])
-
-  // Auto-dismiss toast after 4 s
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
+    if (!blockedHint) return
+    const t = setTimeout(() => setBlockedHint(null), 4000)
     return () => clearTimeout(t)
-  }, [toast])
+  }, [blockedHint])
 
   function handleOpenMission(missionId) {
     const mission = missions.find(m => m.id === missionId)
     const status = tourProgress.missions[missionId]?.status
     // Completed/skipped stops open in read-only review mode (no GPS gate) so the
     // player can re-read the story, replay the audio, or download their photo.
-    if (status === 'completed') { onOpenMission(missionId); return }
-    if (status !== 'unlocked') return
+    if (status === 'completed') { setBlockedHint(null); onOpenMission(missionId); return }
 
-    // GPS gate — only active when we have a live position AND the stop has coordinates.
-    // Uses the same 300m reach radius as the challenge itself, so being at the stop
-    // (within GPS drift) always lets you open and do it.
+    // Sequence-locked (sequential tours only — free-roam never locks): tell the
+    // player which stop to finish first instead of doing nothing.
+    if (status !== 'unlocked') {
+      const n = currentStop ? missions.findIndex(m => m.id === currentStop.id) + 1 : null
+      setBlockedHint({ id: missionId, message: n ? t('hub_locked_sequence', { stop: n }) : t('hub_locked_generic') })
+      return
+    }
+
+    // Distance gate (both tour types): same 300m reach radius as the challenge,
+    // so GPS drift won't block you when you're actually there.
     if (gpsActive && mission.coordinates) {
       const dist = distances[missionId] ?? Infinity
       if (dist > REACH_RADIUS) {
-        setToast({ text: t('hub_toast_warn', { distance: formatDistance(dist) }), type: 'warn' })
+        setBlockedHint({ id: missionId, message: t('hub_toast_warn', { distance: formatDistance(dist) }) })
         return
       }
     }
+    setBlockedHint(null)
     onOpenMission(missionId)
   }
 
@@ -345,59 +351,103 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           </div>
         </div>
 
-        {/* Up next / nearest stop callout — with live distance */}
-        {targetMission && (
-          <button
-            onClick={() => handleOpenMission(targetMission.id)}
-            className="mt-4 w-full flex items-center gap-3 px-4 py-3 rounded-xl active:scale-[0.98] transition-transform"
-            style={{
-              background: `linear-gradient(135deg, ${targetMission.gradient[0]}cc, ${targetMission.gradient[1]}cc)`,
-              border: `1px solid ${targetMission.accentColor}44`,
-              boxShadow: `0 4px 16px ${targetMission.accentColor}22`,
-            }}
-          >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(255,255,255,0.15)' }}>
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1 text-left">
-              <div className="text-white/60 text-xs">{isFreeRoam ? t('hub_nearest_stop') : t('hub_up_next')}</div>
-              <div className="text-white font-semibold text-sm">{targetMission.title}</div>
-            </div>
-            {gpsActive && targetDist != null ? (
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                targetDist <= GPS_RADIUS
-                  ? 'bg-green-500/25 text-green-300'
-                  : 'bg-amber-500/20 text-amber-300'
-              }`}>
-                {targetDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(targetDist)}
-              </span>
-            ) : (
-              <ChevronRight className="w-5 h-5 text-white/60" />
-            )}
-          </button>
-        )}
       </div>
 
-      {/* ── Current-leg map (you → next stop) ───────────────── */}
-      <div className="flex-shrink-0 mx-4 mt-3">
+      {/* ── Done so far (collapsed, above the current step) ──── */}
+      {doneStops.length > 0 && (
+        <div className="flex-shrink-0 mx-4 mt-3">
+          <button
+            onClick={() => setShowDone(v => !v)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl active:scale-[0.99] transition-transform"
+            style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <CheckCircle2 className="w-4 h-4 text-green-400/70 flex-shrink-0" />
+            <span className="text-white/55 text-xs font-semibold tracking-widest uppercase flex-1 text-left">
+              {t('hub_done')} · {doneStops.length}
+            </span>
+            {showDone ? <ChevronUp className="w-4 h-4 text-white/35" /> : <ChevronDown className="w-4 h-4 text-white/35" />}
+          </button>
+          {showDone && (
+            <div className="flex flex-col gap-2 mt-2">
+              {doneStops.map(m => (
+                <CompactMissionCard
+                  key={m.id}
+                  mission={m}
+                  progress={tourProgress.missions[m.id]}
+                  index={missions.findIndex(x => x.id === m.id)}
+                  onOpen={handleOpenMission}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Current step — stop header + its map + arrival, one unit ── */}
+      {currentStop && (
         <div
-          className="rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+          className="flex-shrink-0 mx-4 mt-3 rounded-2xl overflow-hidden"
+          style={arrivedTarget
+            ? { border: '1px solid rgba(34,197,94,0.55)', boxShadow: '0 0 22px rgba(34,197,94,0.22)' }
+            : { border: `1px solid ${currentStop.accentColor}66`, boxShadow: `0 0 16px ${currentStop.accentColor}1f` }}
         >
-          {/* Map + expand button — the "Up next" card above already names the
-              target + distance, so the map carries no duplicate text label. */}
+          {/* Header — tap to start */}
+          <button
+            onClick={() => handleOpenMission(currentStop.id)}
+            className="w-full text-left p-4 flex items-center gap-4 active:scale-[0.99] transition-transform"
+            style={{ background: arrivedTarget ? 'rgba(34,197,94,0.10)' : 'rgba(255,255,255,0.04)' }}
+          >
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+              style={{ background: arrivedTarget ? 'rgba(34,197,94,0.2)' : `${currentStop.accentColor}22`, border: `1px solid ${arrivedTarget ? 'rgba(34,197,94,0.35)' : `${currentStop.accentColor}33`}` }}>
+              {currentStop.emoji}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-white/40 text-xs font-semibold tracking-wider uppercase">
+                  {t('mission_stop')} {missions.findIndex(m => m.id === currentStop.id) + 1}
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                  style={arrivedTarget ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: `${currentStop.accentColor}22`, color: currentStop.accentColor }}>
+                  {arrivedTarget ? t('hub_here') : t('hub_next')}
+                </span>
+              </div>
+              <div className="text-white font-semibold text-sm truncate">{currentStop.title}</div>
+              <div className="text-white/50 text-xs truncate mt-0.5">{currentStop.location}</div>
+            </div>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+              {gpsActive && targetDist != null && (
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                  style={arrivedTarget ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' } : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}>
+                  {arrivedTarget ? t('hub_nearby') : formatDistance(targetDist)}
+                </span>
+              )}
+              <span className="flex items-center gap-0.5 text-xs font-semibold" style={{ color: arrivedTarget ? '#4ade80' : currentStop.accentColor }}>
+                {t('hub_start_challenge')} <ChevronRight className="w-4 h-4" />
+              </span>
+            </div>
+          </button>
+
+          {/* Subtle reason it can't start yet (tapped while too far) */}
+          {blockedHint && blockedHint.id === currentStop.id && (
+            <div className="flex items-center gap-1.5 px-4 py-2 animate-fade-in"
+              style={{ background: 'rgba(245,158,11,0.12)', borderTop: '1px solid rgba(245,158,11,0.2)' }}>
+              <MapPin className="w-3 h-3 text-amber-300/80 flex-shrink-0" />
+              <span className="text-amber-200/90 text-xs">{blockedHint.message}</span>
+            </div>
+          )}
+
+          {/* This stop's map */}
           <div className="relative">
             <MapView
-              missions={nextMission ? [nextMission] : missions}
+              missions={[currentStop]}
               missionProgress={tourProgress.missions}
-              height={nextMission ? 240 : 190}
+              height={220}
               interactive={true}
               accentColor={tour.accentColor}
-              singleMode={!!nextMission}
+              singleMode={true}
               userPosition={userPos}
-              extraFitPoints={nextMission && userPos ? [[userPos.lat, userPos.lng]] : null}
-              geofenceStop={targetMission?.coordinates || null}
+              extraFitPoints={userPos ? [[userPos.lat, userPos.lng]] : null}
+              geofenceStop={currentStop.coordinates || null}
               geofenceActive={arrivedTarget}
             />
             <button
@@ -409,72 +459,82 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             </button>
           </div>
 
-          {/* GPS status bar */}
-          <div
-            className="flex items-center gap-2 px-3 py-2"
-            style={{ background: 'rgba(6,15,30,0.85)' }}
-          >
-            {gpsActive ? (
-              <>
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
-                <span className="text-white/50 text-xs">{t('hub_gps_active')}</span>
-              </>
-            ) : (
-              <>
-                <MapPin className="w-3 h-3 text-white/25 flex-shrink-0" />
-                <span className="text-white/25 text-xs">{t('hub_gps_inactive')}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Toast notification ──────────────────────────────── */}
-      {toast && (
-        <div
-          className="mx-4 mt-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-center"
-          style={toast.type === 'arrive'
-            ? { background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', color: '#86efac' }
-            : { background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.35)', color: '#fcd34d' }}
-        >
-          {toast.text}
+          {/* Footer — arrival CTA when here, else GPS status */}
+          {arrivedTarget ? (
+            <button
+              onClick={() => handleOpenMission(currentStop.id)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-3 active:opacity-90 transition-opacity"
+              style={{ background: 'rgba(34,197,94,0.16)', borderTop: '1px solid rgba(34,197,94,0.3)' }}
+            >
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              <span className="text-green-300 text-sm font-semibold">{t('hub_arrived_here')}</span>
+              <ChevronRight className="w-4 h-4 text-green-300" />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'rgba(6,15,30,0.85)' }}>
+              {gpsActive ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
+                  <span className="text-white/50 text-xs">{t('hub_gps_active')}</span>
+                </>
+              ) : (
+                <>
+                  <MapPin className="w-3 h-3 text-white/25 flex-shrink-0" />
+                  <span className="text-white/25 text-xs">{t('hub_gps_inactive')}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── Mission list ────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-safe">
-        <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3 px-1">
-          {t('hub_all_stops')}
+      {/* Overview map fallback when there's no active stop (all done) */}
+      {!currentStop && (
+        <div className="flex-shrink-0 mx-4 mt-3">
+          <div className="rounded-2xl overflow-hidden relative" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+            <MapView
+              missions={missions}
+              missionProgress={tourProgress.missions}
+              height={190}
+              interactive={true}
+              accentColor={tour.accentColor}
+              userPosition={userPos}
+            />
+            <button
+              onClick={() => setFullscreen(true)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.55)', zIndex: 400 }}
+            >
+              <Maximize2 className="w-4 h-4 text-white" />
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-2.5 stagger-children">
-          {missions.map((mission, idx) => {
-            const prog = tourProgress.missions[mission.id]
-            // Done or skipped stops collapse to a slim row.
-            if (prog?.status === 'completed') {
-              return (
-                <CompactMissionCard
+      )}
+
+      {/* ── Coming up (stops after the current one) ──────────── */}
+      <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-safe">
+        {comingUp.length > 0 && (
+          <>
+            <div className="text-white/30 text-xs font-semibold tracking-widest uppercase mb-3 px-1">
+              {t('hub_coming_up')}
+            </div>
+            <div className="flex flex-col gap-2.5 stagger-children">
+              {comingUp.map(mission => (
+                <MissionCard
                   key={mission.id}
                   mission={mission}
-                  progress={prog}
-                  index={idx}
+                  progress={tourProgress.missions[mission.id]}
+                  index={missions.findIndex(m => m.id === mission.id)}
                   onOpen={handleOpenMission}
+                  distance={distances[mission.id]}
+                  gpsActive={gpsActive}
+                  isTarget={false}
+                  hint={blockedHint?.id === mission.id ? blockedHint.message : null}
                 />
-              )
-            }
-            return (
-              <MissionCard
-                key={mission.id}
-                mission={mission}
-                progress={prog}
-                index={idx}
-                onOpen={handleOpenMission}
-                distance={distances[mission.id]}
-                gpsActive={gpsActive}
-                isTarget={mission.id === targetMission?.id}
-              />
-            )
-          })}
-        </div>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="mt-4 px-1 text-center">
           <p className="text-white/20 text-xs">

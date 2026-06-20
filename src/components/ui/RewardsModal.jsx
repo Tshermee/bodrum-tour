@@ -1,29 +1,41 @@
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Star, Gift, CheckCircle2, Lock } from 'lucide-react'
+import { X, Star, Gift, CheckCircle2, Lock, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-
-const REWARDS = [
-  { id: 'coffee', emoji: '☕', title: 'Free Coffee', desc: 'One free coffee at any partner café in Bodrum', points: 100 },
-  { id: 'drink', emoji: '🍹', title: 'Welcome Drink', desc: 'One free welcome drink at partner bars', points: 200 },
-  { id: 'discount10', emoji: '🍽️', title: '10% Dining Discount', desc: 'At partner restaurants in Bodrum', points: 350 },
-  { id: 'discount15', emoji: '🥂', title: '15% Dining Discount', desc: 'At premium partner restaurants', points: 500 },
-  { id: 'tour_free', emoji: '🗺️', title: 'Free Tour', desc: 'Unlock another Bodrum tour for free', points: 800 },
-]
+import { fetchAppConfig } from '../../lib/api'
+import { DEFAULT_REWARDS, pickLang } from '../../lib/rewards'
 
 function RewardCode({ reward, redeemedAt }) {
   const { t } = useTranslation()
-  const code = `BDR-${reward.id.toUpperCase()}-${new Date(redeemedAt).getTime().toString(36).toUpperCase().slice(-5)}`
+  // Use the admin-set code if present, otherwise generate a unique one.
+  const code = (reward.code || '').trim()
+    || `BDR-${String(reward.id).toUpperCase()}-${new Date(redeemedAt).getTime().toString(36).toUpperCase().slice(-5)}`
   return (
     <div className="mt-2 px-3 py-2 rounded-lg text-center"
       style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)' }}>
       <div className="text-green-400 font-mono font-bold text-sm tracking-widest">{code}</div>
+      {reward.link && (
+        <a href={reward.link} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 mt-1.5 text-cyan-400 text-xs font-medium">
+          <ExternalLink className="w-3 h-3" /> {t('rewards_open_link')}
+        </a>
+      )}
       <div className="text-white/30 text-xs mt-0.5">{t('rewards_code_show')}</div>
     </div>
   )
 }
 
 export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClose }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const [rewards, setRewards] = useState(DEFAULT_REWARDS)
+  const lang = (i18n.language || 'en').split('-')[0]
+
+  useEffect(() => {
+    fetchAppConfig('rewards')
+      .then(cfg => { if (Array.isArray(cfg?.items) && cfg.items.length) setRewards(cfg.items) })
+      .catch(() => {})
+  }, [])
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
@@ -61,10 +73,12 @@ export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClo
         {/* Rewards list */}
         <div className="overflow-y-auto px-4 pb-8" style={{ maxHeight: 'calc(85vh - 120px)', paddingBottom: 'max(2rem, env(safe-area-inset-bottom))' }}>
           <div className="flex flex-col gap-3">
-            {REWARDS.map(reward => {
+            {rewards.map(reward => {
               const redemption = redeemedRewards.find(r => r.id === reward.id)
               const canAfford = balance >= reward.points
               const isRedeemed = !!redemption
+              const title = pickLang(reward.title, lang)
+              const desc = pickLang(reward.desc, lang)
 
               return (
                 <div key={reward.id}
@@ -77,7 +91,7 @@ export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClo
                     <div className="text-2xl flex-shrink-0 mt-0.5">{reward.emoji}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-white font-semibold text-sm">{reward.title}</span>
+                        <span className="text-white font-semibold text-sm">{title}</span>
                         <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
                           style={{
                             background: canAfford || isRedeemed ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)',
@@ -86,14 +100,14 @@ export default function RewardsModal({ balance, redeemedRewards, onRedeem, onClo
                           {reward.points} pts
                         </span>
                       </div>
-                      <p className="text-white/40 text-xs mt-0.5 leading-relaxed">{reward.desc}</p>
+                      <p className="text-white/40 text-xs mt-0.5 leading-relaxed">{desc}</p>
                       {isRedeemed && <RewardCode reward={reward} redeemedAt={redemption.redeemedAt} />}
                     </div>
                     {!isRedeemed && (
                       <button
                         onClick={() => {
                           if (!canAfford) return
-                          if (window.confirm(`Redeem "${reward.title}" for ${reward.points} pts?`)) {
+                          if (window.confirm(`Redeem "${title}" for ${reward.points} pts?`)) {
                             onRedeem(reward)
                           }
                         }}

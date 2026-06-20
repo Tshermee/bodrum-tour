@@ -15,6 +15,7 @@ import SkipReports from './pages/SkipReports'
 import WelcomeConfig from './pages/WelcomeConfig'
 import RulesConfig from './pages/RulesConfig'
 import CompletionConfig from './pages/CompletionConfig'
+import RewardsConfig from './pages/RewardsConfig'
 
 export default function AdminApp() {
   const [session, setSession] = useState(null)
@@ -69,6 +70,7 @@ export default function AdminApp() {
           <Route path="/welcome-config" element={<WelcomeConfig />} />
           <Route path="/rules-config" element={<RulesConfig />} />
           <Route path="/completion-config" element={<CompletionConfig />} />
+          <Route path="/rewards-config" element={<RewardsConfig />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AdminLayout>

@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   LayoutDashboard, Map, ShoppingBag, BarChart3,
-  LogOut, Menu, X, ChevronRight, MapPin, SkipForward, Home, BookOpen, Trophy, Tag
+  LogOut, Menu, X, ChevronRight, MapPin, SkipForward, Home, BookOpen, Trophy, Tag, Gift
 } from 'lucide-react'
 
 const NAV_MAIN = [
@@ -18,6 +18,7 @@ const NAV_CONFIG = [
   { path: '/welcome-config', label: 'Welcome Screen', icon: Home },
   { path: '/rules-config', label: 'Game Rules', icon: BookOpen },
   { path: '/completion-config', label: 'Mission Complete', icon: Trophy },
+  { path: '/rewards-config', label: 'Redeem Rewards', icon: Gift },
 ]
 const NAV = [...NAV_MAIN, ...NAV_CONFIG]
 

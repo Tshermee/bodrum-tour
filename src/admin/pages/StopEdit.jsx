@@ -17,6 +17,7 @@ const EMPTY = {
   challenge_answer: '',
   challenge_hint: '',
   challenge_prompt: '',
+  challenge_options: '',
   photo_url: '',
   show_photo: false,
   points: 100,
@@ -372,18 +373,55 @@ export default function StopEdit() {
           <h2 className="font-semibold text-white">Challenge</h2>
           <Field label="Challenge Type">
             <select value={form.challenge_type} onChange={e => set('challenge_type', e.target.value)} className={inputCls}>
-              <option value="photo">Photo</option>
-              <option value="riddle">Riddle (text answer)</option>
-              <option value="code">Code (numeric/alphanumeric)</option>
+              <option value="photo">📸  Photo</option>
+              <option value="riddle">🔍  Riddle (text answer)</option>
+              <option value="code">🔢  Code (numeric / alphanumeric)</option>
+              <option value="multiple_choice">🎯  Multiple Choice / True–False</option>
+              <option value="image_hunt">🔎  Image Hunt (find & name it)</option>
             </select>
           </Field>
           <Field label="Challenge Prompt" hint="The instruction shown to the user.">
             <textarea value={form.challenge_prompt || ''} onChange={e => set('challenge_prompt', e.target.value)}
               className={`${inputCls} h-20 resize-none`} placeholder="e.g. Take a photo of the castle's reflection in the harbor." />
           </Field>
+          {form.challenge_type === 'multiple_choice' && (
+            <Field label="Answer Options" hint="One option per line. For True/False just enter True and False.">
+              <textarea
+                value={form.challenge_options || ''}
+                onChange={e => set('challenge_options', e.target.value)}
+                className={`${inputCls} h-28 resize-none font-mono`}
+                placeholder={'True\nFalse'}
+              />
+            </Field>
+          )}
+          {form.challenge_type === 'image_hunt' && (
+            <div className="rounded-xl px-4 py-3 text-sm text-sky-300"
+              style={{ background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)' }}>
+              Upload a close-up photo above — it becomes the visual clue players must find in the real world.
+            </div>
+          )}
           {form.challenge_type !== 'photo' && (
-            <Field label="Answer" hint="Exact answer (case-insensitive matching applied automatically).">
-              <input value={form.challenge_answer || ''} onChange={e => set('challenge_answer', e.target.value)} className={inputCls} placeholder="e.g. mausoleum" />
+            <Field
+              label={form.challenge_type === 'multiple_choice' ? 'Correct Answer' : 'Answer'}
+              hint={
+                form.challenge_type === 'multiple_choice'
+                  ? 'Must match one of the options above exactly (case-insensitive).'
+                  : form.challenge_type === 'riddle' || form.challenge_type === 'image_hunt'
+                  ? 'Separate multiple accepted answers with |  e.g.  doorhandle|door handle|doorhandel'
+                  : 'Case-insensitive matching applied automatically.'
+              }
+            >
+              <input
+                value={form.challenge_answer || ''}
+                onChange={e => set('challenge_answer', e.target.value)}
+                className={inputCls}
+                placeholder={
+                  form.challenge_type === 'multiple_choice' ? 'e.g. True' :
+                  form.challenge_type === 'riddle' ? 'e.g. mausoleum|mausoleum tomb' :
+                  form.challenge_type === 'image_hunt' ? 'e.g. door handle|doorhandle' :
+                  'e.g. 1200'
+                }
+              />
             </Field>
           )}
           <Field label="Hint" hint="Shown after 2 wrong attempts.">

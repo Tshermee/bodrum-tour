@@ -1,50 +1,28 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { HelpCircle, CheckCircle2, XCircle, Lightbulb, ChevronDown, ChevronUp, Send } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
+import { CheckSquare, CheckCircle2, Lightbulb, ChevronDown, ChevronUp } from 'lucide-react'
 
 const normalize = (s) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
 
-function levenshtein(a, b) {
-  const m = a.length, n = b.length
-  const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
-  for (let i = 0; i <= m; i++) dp[i][0] = i
-  for (let j = 0; j <= n; j++) dp[0][j] = j
-  for (let i = 1; i <= m; i++)
-    for (let j = 1; j <= n; j++)
-      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
-  return dp[m][n]
-}
-
-function checkAnswer(input, answerField) {
-  const norm = normalize(input)
-  const answers = (answerField || '').split('|').map(a => normalize(a)).filter(Boolean)
-  return answers.some(ans => norm === ans || (ans.length >= 5 && levenshtein(norm, ans) <= 1))
-}
-
-export default function RiddleChallenge({ challenge, isCompleted, accentColor, gradient, onComplete }) {
-  const { t } = useTranslation()
-  const [answer, setAnswer] = useState('')
+export default function MultipleChoiceChallenge({ challenge, isCompleted, accentColor, gradient, onComplete }) {
+  const [selected, setSelected] = useState(null)
   const [attempts, setAttempts] = useState(0)
   const [lastWrong, setLastWrong] = useState(false)
   const [hintOpen, setHintOpen] = useState(false)
   const [hintUsed, setHintUsed] = useState(false)
   const [showHintWarning, setShowHintWarning] = useState(false)
-  const [shake, setShake] = useState(false)
 
-  const handleSubmit = (e) => {
-    e?.preventDefault()
-    if (!answer.trim()) return
+  const options = challenge.options || []
 
-    if (checkAnswer(answer, challenge.answer)) {
+  const handleSubmit = () => {
+    if (selected === null) return
+    if (normalize(selected) === normalize(challenge.answer)) {
       const penalty = (hintUsed ? 20 : 0) + attempts * 10
       onComplete(penalty)
     } else {
       const newAttempts = attempts + 1
       setAttempts(newAttempts)
       setLastWrong(true)
-      setShake(true)
-      setTimeout(() => setShake(false), 600)
       if (newAttempts >= 2) setHintOpen(true)
     }
   }
@@ -57,8 +35,8 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
       >
         <CheckCircle2 className="w-8 h-8 text-green-400 flex-shrink-0" />
         <div>
-          <div className="text-green-400 font-semibold">{t('riddle_challenge_success')}</div>
-          <div className="text-white/50 text-sm capitalize">"{(challenge.answer || '').split('|')[0]}"</div>
+          <div className="text-green-400 font-semibold">Correct!</div>
+          <div className="text-white/50 text-sm">"{challenge.answer}"</div>
         </div>
       </div>
     )
@@ -66,7 +44,7 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
 
   return (
     <div className="space-y-3">
-      {/* Riddle card */}
+      {/* Question card */}
       <div
         className="rounded-2xl p-4"
         style={{
@@ -75,9 +53,9 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
         }}
       >
         <div className="flex items-center gap-2 mb-3">
-          <HelpCircle className="w-4 h-4" style={{ color: accentColor }} />
+          <CheckSquare className="w-4 h-4" style={{ color: accentColor }} />
           <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: accentColor }}>
-            Riddle
+            Choose the answer
           </span>
         </div>
         <p className="text-white/85 text-sm leading-relaxed whitespace-pre-line font-medium">
@@ -85,12 +63,39 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
         </p>
       </div>
 
+      {/* Option buttons */}
+      <div className="space-y-2">
+        {options.map((option, i) => {
+          const isSelected = selected === option
+          const isWrong = lastWrong && isSelected
+          return (
+            <button
+              key={i}
+              onClick={() => { setSelected(option); setLastWrong(false) }}
+              className="w-full text-left px-4 py-3.5 rounded-xl font-medium text-sm transition-all active:scale-[0.98]"
+              style={
+                isWrong
+                  ? { background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5' }
+                  : isSelected
+                  ? { background: `${accentColor}22`, border: `1px solid ${accentColor}66`, color: '#fff' }
+                  : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }
+              }
+            >
+              {option}
+            </button>
+          )
+        })}
+      </div>
+
+      {lastWrong && (
+        <p className="text-red-400/80 text-xs ml-1 animate-fade-in">
+          Not quite — try another option.
+        </p>
+      )}
+
       {/* Hint */}
       {challenge.hint && (
-        <div
-          className="rounded-2xl overflow-hidden"
-          style={{ border: '1px solid rgba(251,191,36,0.2)' }}
-        >
+        <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(251,191,36,0.2)' }}>
           <button
             onClick={() => {
               if (hintUsed || hintOpen) { setHintOpen(v => !v) }
@@ -101,70 +106,33 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
           >
             <Lightbulb className="w-4 h-4 text-amber-400 flex-shrink-0" />
             <span className="text-amber-400 text-sm font-medium flex-1 text-left">
-              {hintUsed ? t('riddle_challenge_hint_used') : attempts >= 2 ? t('riddle_challenge_hint_warning') : t('riddle_challenge_hint_unused')}
+              {hintUsed ? 'Hint used' : attempts >= 2 ? 'Hint unlocked — tap to reveal' : 'Need a hint? (−20 pts)'}
             </span>
             {hintOpen ? <ChevronUp className="w-4 h-4 text-amber-400/60" /> : <ChevronDown className="w-4 h-4 text-amber-400/60" />}
           </button>
           {hintOpen && (
-            <div className="px-4 pb-3 pt-1 animate-fade-in"
-              style={{ background: 'rgba(251,191,36,0.05)' }}>
+            <div className="px-4 pb-3 pt-1 animate-fade-in" style={{ background: 'rgba(251,191,36,0.05)' }}>
               <p className="text-white/60 text-sm leading-relaxed">{challenge.hint}</p>
             </div>
           )}
         </div>
       )}
 
-      {/* Answer form */}
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <div>
-          <div
-            className={`
-              flex items-center gap-2 px-4 py-3.5 rounded-xl transition-all
-              ${shake ? 'animate-bounce' : ''}
-            `}
-            style={{
-              background: lastWrong
-                ? 'rgba(239,68,68,0.1)'
-                : 'rgba(255,255,255,0.06)',
-              border: lastWrong
-                ? '1px solid rgba(239,68,68,0.4)'
-                : `1px solid ${accentColor}33`,
-            }}
-          >
-            <input
-              type="text"
-              value={answer}
-              onChange={e => { setAnswer(e.target.value); setLastWrong(false) }}
-              placeholder={t('riddle_challenge_placeholder')}
-              className="flex-1 bg-transparent text-white placeholder-white/25 text-base focus:outline-none"
-              autoCapitalize="off"
-              autoCorrect="off"
-              spellCheck={false}
-            />
-            {lastWrong && <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />}
-          </div>
-          {lastWrong && (
-            <p className="text-red-400/80 text-xs mt-1.5 ml-1 animate-fade-in">
-              {t('riddle_challenge_error')}
-            </p>
-          )}
-        </div>
+      {/* Submit */}
+      <button
+        onClick={handleSubmit}
+        disabled={selected === null}
+        className="w-full py-4 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40"
+        style={{
+          background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
+          boxShadow: selected !== null ? `0 4px 16px ${accentColor}33` : 'none',
+        }}
+      >
+        <CheckSquare className="w-4 h-4" />
+        Confirm Answer
+      </button>
 
-        <button
-          type="submit"
-          disabled={!answer.trim()}
-          className="w-full py-4 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40"
-          style={{
-            background: `linear-gradient(135deg, ${gradient[0]}, ${gradient[1]})`,
-            boxShadow: answer.trim() ? `0 4px 16px ${accentColor}33` : 'none',
-          }}
-        >
-          <Send className="w-4 h-4" />
-          {t('riddle_challenge_submit')}
-        </button>
-      </form>
-
-      {attempts > 0 && !isCompleted && (
+      {attempts > 0 && (
         <p className="text-white/25 text-xs text-center">
           {attempts} attempt{attempts !== 1 ? 's' : ''} · Keep going!
         </p>
@@ -187,9 +155,9 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
                 <Lightbulb className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h3 className="text-white font-bold text-lg">{t('hint_warning_title')}</h3>
+                <h3 className="text-white font-bold text-lg">Use a hint?</h3>
                 <p className="text-white/50 text-sm mt-0.5">
-                  {t('hint_warning_deduct')} <span className="text-amber-400 font-semibold">20 {t('hint_warning_from_score')}</span>
+                  This will deduct <span className="text-amber-400 font-semibold">20 points</span> from your score.
                 </p>
               </div>
             </div>
@@ -199,14 +167,14 @@ export default function RiddleChallenge({ challenge, isCompleted, accentColor, g
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }}
               >
-                {t('hint_cancel')}
+                Cancel
               </button>
               <button
                 onClick={() => { setHintUsed(true); setHintOpen(true); setShowHintWarning(false) }}
                 className="flex-1 py-3.5 rounded-xl font-semibold text-sm text-white"
                 style={{ background: 'linear-gradient(135deg, #b45309, #d97706)' }}
               >
-                {t('riddle_hint_reveal')}
+                Reveal Hint
               </button>
             </div>
           </div>

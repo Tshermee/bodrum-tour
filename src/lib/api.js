@@ -11,7 +11,7 @@ function emojiForTags(tags = []) {
   return '🗺️'
 }
 
-const STOP_EMOJI = { photo: '📸', riddle: '🔍', code: '🔢' }
+const STOP_EMOJI = { photo: '📸', riddle: '🔍', code: '🔢', multiple_choice: '🎯', image_hunt: '🔎' }
 
 function transformStop(stop, tour) {
   const challenge = {
@@ -21,6 +21,14 @@ function transformStop(stop, tour) {
   }
   if (stop.challenge_type === 'riddle') challenge.answer = stop.challenge_answer || ''
   if (stop.challenge_type === 'code') challenge.code = stop.challenge_answer || ''
+  if (stop.challenge_type === 'multiple_choice') {
+    challenge.answer = stop.challenge_answer || ''
+    challenge.options = (stop.challenge_options || '').split('\n').map(s => s.trim()).filter(Boolean)
+  }
+  if (stop.challenge_type === 'image_hunt') {
+    challenge.answer = stop.challenge_answer || ''
+    challenge.huntImage = stop.photo_url || null
+  }
 
   return {
     id: stop.order_index,
@@ -34,7 +42,8 @@ function transformStop(stop, tour) {
     story: stop.story || '',
     points: stop.points || 100,
     photoUrl: stop.photo_url || null,
-    showPhoto: !!stop.show_photo,
+    // for image_hunt the challenge component always shows the photo — keep map visible in the header
+    showPhoto: stop.challenge_type === 'image_hunt' ? false : !!stop.show_photo,
     challenge,
   }
 }

@@ -12,6 +12,8 @@ const SKIP_REASON_IDS = ['construction', 'accessibility', 'closed', 'notfound', 
 import PhotoChallenge from '../challenges/PhotoChallenge'
 import RiddleChallenge from '../challenges/RiddleChallenge'
 import CodeChallenge from '../challenges/CodeChallenge'
+import MultipleChoiceChallenge from '../challenges/MultipleChoiceChallenge'
+import ImageHuntChallenge from '../challenges/ImageHuntChallenge'
 import MapView from '../ui/MapView'
 
 export default function MissionScreen({
@@ -241,6 +243,26 @@ export default function MissionScreen({
 
           {(isCompleted || canComplete) && mission.challenge.type === 'code' && (
             <CodeChallenge
+              challenge={mission.challenge}
+              isCompleted={isCompleted}
+              accentColor={mission.accentColor}
+              gradient={mission.gradient}
+              onComplete={penalty => handleComplete(null, penalty)}
+            />
+          )}
+
+          {(isCompleted || canComplete) && mission.challenge.type === 'multiple_choice' && (
+            <MultipleChoiceChallenge
+              challenge={mission.challenge}
+              isCompleted={isCompleted}
+              accentColor={mission.accentColor}
+              gradient={mission.gradient}
+              onComplete={penalty => handleComplete(null, penalty)}
+            />
+          )}
+
+          {(isCompleted || canComplete) && mission.challenge.type === 'image_hunt' && (
+            <ImageHuntChallenge
               challenge={mission.challenge}
               isCompleted={isCompleted}
               accentColor={mission.accentColor}

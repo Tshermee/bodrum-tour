@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { adminFetchStops, adminDeleteStop, adminUpsertStop } from '../../lib/api'
-import { Plus, Edit2, Trash2, ArrowLeft, Loader2, GripVertical, Camera, FileText, Hash } from 'lucide-react'
+import { Plus, Edit2, Trash2, ArrowLeft, Loader2, GripVertical, Camera, FileText, Hash, CheckSquare, Eye } from 'lucide-react'
 
-const TYPE_ICON = { photo: Camera, riddle: FileText, code: Hash }
-const TYPE_COLOR = { photo: 'text-purple-400', riddle: 'text-amber-400', code: 'text-cyan-400' }
+const TYPE_ICON = { photo: Camera, riddle: FileText, code: Hash, multiple_choice: CheckSquare, image_hunt: Eye }
+const TYPE_COLOR = { photo: 'text-purple-400', riddle: 'text-amber-400', code: 'text-cyan-400', multiple_choice: 'text-green-400', image_hunt: 'text-sky-400' }
 
 export default function Stops() {
   const { tourId } = useParams()

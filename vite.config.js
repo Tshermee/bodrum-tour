@@ -25,6 +25,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Let the freshly-activated SW take control of the open page so the
+        // "Reload" banner's controllerchange-based reload actually fires.
+        // (skipWaiting stays off — prompt mode controls when we activate.)
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {

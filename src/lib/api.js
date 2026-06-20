@@ -149,13 +149,23 @@ export async function upsertTourProgress({ purchaseId, tourId, teamName, deviceI
   const { data, error } = await supabase
     .from('tour_progress')
     .upsert(
-      { purchase_id: purchaseId ?? null, tour_id: tourId, team_name: teamName, device_id: deviceId },
+      { purchase_id: purchaseId ?? null, tour_id: tourId, team_name: teamName, device_id: deviceId, last_active_at: new Date().toISOString() },
       { onConflict: 'tour_id,device_id', ignoreDuplicates: false }
     )
     .select()
     .single()
   if (error) throw error
   return data
+}
+
+// Heartbeat: bump last_active_at so the dashboard can tell who's playing now.
+// Fire-and-forget from the player app; failures are ignored (offline is fine).
+export async function touchTourProgress(tourProgressId) {
+  if (!tourProgressId) return
+  await supabase
+    .from('tour_progress')
+    .update({ last_active_at: new Date().toISOString() })
+    .eq('id', tourProgressId)
 }
 
 export async function completeStop({ tourProgressId, stopId, score, photoUrl, attempts }) {
@@ -320,7 +330,7 @@ export async function adminFetchLiveProgress() {
   const { data, error } = await supabaseAdmin
     .from('tour_progress')
     .select(`
-      id, team_name, tour_id, created_at:started_at, completed_at, total_score,
+      id, team_name, tour_id, created_at:started_at, completed_at, total_score, last_active_at,
       tours ( name, tour_stops ( count ) ),
       stop_progress ( count )
     `)

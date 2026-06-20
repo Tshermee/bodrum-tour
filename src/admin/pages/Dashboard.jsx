@@ -20,7 +20,23 @@ function StatCard({ label, value, sub, icon: Icon, color }) {
   )
 }
 
+// A team counts as "active now" if it isn't finished and has pinged within this
+// window. Tweak this one value to widen/narrow the live count.
+const ACTIVE_WINDOW_MINUTES = 180 // 3 hours
+const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_MINUTES * 60 * 1000
+
+function lastActiveMs(s) {
+  // Fall back to start time for old rows that never recorded a heartbeat.
+  const ts = s.last_active_at || s.created_at
+  return ts ? Date.now() - new Date(ts) : Infinity
+}
+
+function isActiveNow(s) {
+  return !s.completed_at && lastActiveMs(s) < ACTIVE_WINDOW_MS
+}
+
 function timeAgo(iso) {
+  if (!iso) return ''
   const diff = (Date.now() - new Date(iso)) / 1000
   if (diff < 60) return 'just now'
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
@@ -62,7 +78,8 @@ export default function Dashboard() {
   const completions = totals.completions || liveCompletions
   const overallRate = starts > 0 ? Math.round(completions / starts * 100) : 0
 
-  const active = sessions.filter(s => !s.completed_at)
+  const active = sessions.filter(isActiveNow)
+  const inProgress = sessions.filter(s => !s.completed_at)
   const done = sessions.filter(s => s.completed_at)
 
   return (
@@ -74,7 +91,7 @@ export default function Dashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard label="Teams Active" value={active.length} sub="not yet finished" icon={Users} color="bg-blue-600" />
+        <StatCard label="Teams Active" value={active.length} sub={`playing now · last ${ACTIVE_WINDOW_MINUTES >= 60 ? `${ACTIVE_WINDOW_MINUTES / 60}h` : `${ACTIVE_WINDOW_MINUTES}m`}`} icon={Users} color="bg-blue-600" />
         <StatCard label="Tours Finished" value={liveCompletions} sub="all time" icon={Trophy} color="bg-amber-600" />
         <StatCard label="Tours Started" value={liveStarts || starts} sub="unique sessions" icon={TrendingUp} color="bg-purple-600" />
         <StatCard label="Completion Rate" value={`${overallRate}%`} sub={`${completions} of ${starts}`} icon={CheckCircle2} color="bg-emerald-600" />
@@ -86,7 +103,7 @@ export default function Dashboard() {
           <div>
             <h2 className="font-semibold text-white">Teams</h2>
             <p className="text-gray-500 text-xs mt-0.5">
-              {active.length} in progress · {done.length} finished
+              {active.length} playing now · {inProgress.length} in progress · {done.length} finished
             </p>
           </div>
         </div>
@@ -102,12 +119,13 @@ export default function Dashboard() {
               const totalStops = Number(s.tours?.tour_stops?.[0]?.count ?? 0)
               const pct = totalStops > 0 ? Math.round(stopsCompleted / totalStops * 100) : 0
               const isComplete = !!s.completed_at
+              const activeNow = isActiveNow(s)
 
               return (
                 <div key={s.id} className="px-6 py-4 flex items-center gap-4">
                   {/* Status dot */}
-                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isComplete ? 'bg-emerald-400' : 'bg-blue-400'}`}
-                    style={!isComplete ? { boxShadow: '0 0 0 3px rgba(96,165,250,0.2)' } : {}} />
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${isComplete ? 'bg-emerald-400' : activeNow ? 'bg-blue-400' : 'bg-gray-600'}`}
+                    style={activeNow ? { boxShadow: '0 0 0 3px rgba(96,165,250,0.2)' } : {}} />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -135,13 +153,20 @@ export default function Dashboard() {
                         style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' }}>
                         <CheckCircle2 className="w-3 h-3" /> Done
                       </span>
-                    ) : (
+                    ) : activeNow ? (
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
                         style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa', border: '1px solid rgba(96,165,250,0.2)' }}>
                         <Clock className="w-3 h-3" /> Active
                       </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium"
+                        style={{ background: 'rgba(107,114,128,0.12)', color: '#9ca3af', border: '1px solid rgba(107,114,128,0.25)' }}>
+                        <Clock className="w-3 h-3" /> Idle
+                      </span>
                     )}
-                    <div className="text-gray-600 text-xs mt-1">{timeAgo(s.created_at)}</div>
+                    <div className="text-gray-600 text-xs mt-1">
+                      {isComplete ? timeAgo(s.completed_at) : `active ${timeAgo(s.last_active_at || s.created_at)}`}
+                    </div>
                   </div>
                 </div>
               )

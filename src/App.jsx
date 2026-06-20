@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ALL_TOURS } from './data/toursData'
 import { useLocalStorage } from './hooks/useLocalStorage'
-import { fetchAllToursForApp, fetchTourByPreviewToken, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops, reportSkip } from './lib/api'
+import { fetchAllToursForApp, fetchTourByPreviewToken, createPurchase, upsertTourProgress, completeStop, completeTour, fetchTourWithStops, reportSkip, touchTourProgress } from './lib/api'
 import WelcomeScreen from './components/screens/WelcomeScreen'
 import TourSelectScreen from './components/screens/TourSelectScreen'
 import MissionHubScreen from './components/screens/MissionHubScreen'
@@ -102,6 +102,21 @@ export default function App() {
   })
   const [activeMissionId, setActiveMissionId] = useState(null)
   const [successData, setSuccessData] = useState(null)
+
+  // Heartbeat: while a tour is open, bump last_active_at so the admin dashboard
+  // can count who's actually playing right now (fire-and-forget, offline-safe).
+  useEffect(() => {
+    if (!selectedTourId || (screen !== 'hub' && screen !== 'mission')) return
+    const ping = () => {
+      const cache = supabaseCache[selectedTourId]
+      if (cache?.progressId) touchTourProgress(cache.progressId).catch(() => {})
+    }
+    ping()
+    const iv = setInterval(ping, 60000)
+    const onVisible = () => { if (document.visibilityState === 'visible') ping() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { clearInterval(iv); document.removeEventListener('visibilitychange', onVisible) }
+  }, [selectedTourId, screen])
 
   const activeTour = selectedTourId ? (tours.find(t => t.id === selectedTourId) ?? null) : null
   const activeTourProgress = selectedTourId ? allProgress[selectedTourId] ?? null : null

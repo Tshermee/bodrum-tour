@@ -200,9 +200,17 @@ export default function MissionScreen({
             className="w-full flex items-center gap-3 py-3 px-4 rounded-xl text-left active:scale-[0.99] transition-transform"
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
           >
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
-              style={{ background: 'rgba(251, 191, 36, 0.15)' }}>
-              {mission.audioUrl ? '📖🔊' : <BookOpen className="w-4 h-4 text-amber-400" />}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: 'rgba(251, 191, 36, 0.15)' }}>
+                <BookOpen className="w-4 h-4 text-amber-400" />
+              </div>
+              {mission.audioUrl && (
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ background: `${mission.accentColor}22` }}>
+                  <Volume2 className="w-4 h-4" style={{ color: mission.accentColor }} />
+                </div>
+              )}
             </div>
             <div className="flex-1">
               <div className="text-white font-medium text-sm">{t('mission_story')}</div>

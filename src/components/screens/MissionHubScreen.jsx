@@ -9,7 +9,10 @@ import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters, formatDistance } from '../../lib/geo'
 
-const GPS_RADIUS = 50 // metres
+const GPS_RADIUS = 50    // metres — "you're here" arrival radius (badge + toast)
+const REACH_RADIUS = 300 // metres — close enough to open & do a stop; matches MissionScreen's COMPLETE_RADIUS.
+                         // GPS in town can drift 50–150 m, so gating opening at 50 m left players unable to
+                         // start a stop they were standing at.
 
 // Slim, "minimized" row for stops that are done or skipped — keeps the screen
 // focused on directing the player to the next stop.
@@ -201,6 +204,22 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
 
   const gpsActive = userPos !== null
 
+  // The stop we surface a prominent distance to. Sequential: the next unlocked
+  // stop. Free-roam: the nearest stop the player hasn't finished yet.
+  const targetMission = (() => {
+    if (!isFreeRoam) return nextMission
+    const incomplete = missions.filter(m => tourProgress.missions[m.id]?.status !== 'completed')
+    if (!incomplete.length) return null
+    if (!gpsActive) return incomplete[0]
+    let best = null, bestD = Infinity
+    for (const m of incomplete) {
+      const d = distances[m.id]
+      if (d != null && d < bestD) { bestD = d; best = m }
+    }
+    return best ?? incomplete[0]
+  })()
+  const targetDist = targetMission ? distances[targetMission.id] : null
+
   // Fire toast when user enters the 50m radius of an unlocked stop
   useEffect(() => {
     if (!userPos) return
@@ -230,10 +249,12 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     const status = tourProgress.missions[missionId]?.status
     if (status !== 'unlocked') return
 
-    // GPS gate — only active when we have a live position AND the stop has coordinates
+    // GPS gate — only active when we have a live position AND the stop has coordinates.
+    // Uses the same 300m reach radius as the challenge itself, so being at the stop
+    // (within GPS drift) always lets you open and do it.
     if (gpsActive && mission.coordinates) {
       const dist = distances[missionId] ?? Infinity
-      if (dist > GPS_RADIUS) {
+      if (dist > REACH_RADIUS) {
         setToast({ text: t('hub_toast_warn', { distance: formatDistance(dist) }), type: 'warn' })
         return
       }
@@ -306,15 +327,15 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
           </div>
         </div>
 
-        {/* Up next callout */}
-        {nextMission && (
+        {/* Up next / nearest stop callout — with live distance */}
+        {targetMission && (
           <button
-            onClick={() => handleOpenMission(nextMission.id)}
+            onClick={() => handleOpenMission(targetMission.id)}
             className="mt-4 w-full flex items-center gap-3 px-4 py-3 rounded-xl active:scale-[0.98] transition-transform"
             style={{
-              background: `linear-gradient(135deg, ${nextMission.gradient[0]}cc, ${nextMission.gradient[1]}cc)`,
-              border: `1px solid ${nextMission.accentColor}44`,
-              boxShadow: `0 4px 16px ${nextMission.accentColor}22`,
+              background: `linear-gradient(135deg, ${targetMission.gradient[0]}cc, ${targetMission.gradient[1]}cc)`,
+              border: `1px solid ${targetMission.accentColor}44`,
+              boxShadow: `0 4px 16px ${targetMission.accentColor}22`,
             }}
           >
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -322,16 +343,16 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 text-left">
-              <div className="text-white/60 text-xs">{t('hub_up_next')}</div>
-              <div className="text-white font-semibold text-sm">{nextMission.title}</div>
+              <div className="text-white/60 text-xs">{isFreeRoam ? t('hub_nearest_stop') : t('hub_up_next')}</div>
+              <div className="text-white font-semibold text-sm">{targetMission.title}</div>
             </div>
-            {gpsActive && nextDist != null ? (
+            {gpsActive && targetDist != null ? (
               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                nextDist <= GPS_RADIUS
+                targetDist <= GPS_RADIUS
                   ? 'bg-green-500/25 text-green-300'
                   : 'bg-amber-500/20 text-amber-300'
               }`}>
-                {nextDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(nextDist)}
+                {targetDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(targetDist)}
               </span>
             ) : (
               <ChevronRight className="w-5 h-5 text-white/60" />
@@ -379,9 +400,20 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
               <span className="text-white/70 text-xs font-semibold truncate">
                 {t('hub_free_roam_hint')}
               </span>
-              <span className="ml-auto text-white/40 text-xs flex-shrink-0">
-                {t('hub_progress_of', { completed, total: missions.length })}
-              </span>
+              {gpsActive && targetDist != null ? (
+                <span
+                  className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                  style={targetDist <= GPS_RADIUS
+                    ? { background: 'rgba(34,197,94,0.2)', color: '#4ade80' }
+                    : { background: 'rgba(251,191,36,0.15)', color: '#fcd34d' }}
+                >
+                  {targetDist <= GPS_RADIUS ? t('hub_nearby') : formatDistance(targetDist)}
+                </span>
+              ) : (
+                <span className="ml-auto text-white/40 text-xs flex-shrink-0">
+                  {t('hub_progress_of', { completed, total: missions.length })}
+                </span>
+              )}
             </div>
           )}
 

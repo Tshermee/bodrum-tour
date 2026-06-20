@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, Star, ChevronRight, MapPin } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-export default function SuccessOverlay({ mission, nextMission, score, totalScore, onDismiss }) {
+export default function SuccessOverlay({ mission, nextMission, isFinal = false, score, totalScore, onDismiss }) {
   const { t } = useTranslation()
   const [visible, setVisible] = useState(false)
 
@@ -83,8 +83,17 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
             {t('success_total_score')}: <span className="text-white font-bold">{totalScore}</span> pts
           </div>
 
-          {/* Next mission preview */}
-          {nextMission ? (
+          {/* Bottom panel: tour finished, next-stop preview, or "pick your next stop" */}
+          {isFinal ? (
+            <div
+              className="rounded-2xl p-4 mb-4 text-center"
+              style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}
+            >
+              <div className="text-2xl mb-1">🎉</div>
+              <div className="text-amber-400 font-semibold">{t('success_final')}</div>
+              <div className="text-white/50 text-sm">{t('success_final_message')}</div>
+            </div>
+          ) : nextMission ? (
             <div
               className="rounded-2xl p-4 mb-4"
               style={{
@@ -113,11 +122,11 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
           ) : (
             <div
               className="rounded-2xl p-4 mb-4 text-center"
-              style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}
+              style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)' }}
             >
-              <div className="text-2xl mb-1">🎉</div>
-              <div className="text-amber-400 font-semibold">{t('success_final')}</div>
-              <div className="text-white/50 text-sm">{t('success_final_message')}</div>
+              <div className="text-2xl mb-1">🧭</div>
+              <div className="text-sky-300 font-semibold">{t('success_pick_next')}</div>
+              <div className="text-white/50 text-sm">{t('success_pick_next_message')}</div>
             </div>
           )}
 
@@ -126,16 +135,18 @@ export default function SuccessOverlay({ mission, nextMission, score, totalScore
             onClick={onDismiss}
             className="w-full py-4 rounded-xl font-bold text-white text-base flex items-center justify-center gap-2 active:scale-95 transition-transform"
             style={{
-              background: nextMission
-                ? `linear-gradient(135deg, ${nextMission.gradient[0]}, ${nextMission.gradient[1]})`
-                : 'linear-gradient(135deg, #d97706, #f59e0b)',
+              background: isFinal
+                ? 'linear-gradient(135deg, #d97706, #f59e0b)'
+                : nextMission
+                  ? `linear-gradient(135deg, ${nextMission.gradient[0]}, ${nextMission.gradient[1]})`
+                  : 'linear-gradient(135deg, #0284c7, #38bdf8)',
               boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
             }}
           >
-            {nextMission ? (
-              <>{t('success_continue')} <ChevronRight className="w-5 h-5" /></>
-            ) : (
+            {isFinal ? (
               <>{t('success_results')} 🏆</>
+            ) : (
+              <>{t('success_continue')} <ChevronRight className="w-5 h-5" /></>
             )}
           </button>
         </div>

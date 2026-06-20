@@ -187,6 +187,8 @@
   "success_up_next": "Up Next",
   "success_final": "Final stop completed!",
   "success_final_message": "Time to see your results!",
+  "success_pick_next": "Nice work!",
+  "success_pick_next_message": "Choose your next stop on the map.",
   "success_continue": "Continue",
   "success_results": "See My Results 🏆",
 

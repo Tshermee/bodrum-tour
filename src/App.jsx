@@ -155,6 +155,13 @@ export default function App() {
       : activeTour.missions.find(m => m.id === missionId + 1) ?? null
     const earnedPoints = Math.max(0, mission.points - penalty)
 
+    // The tour is finished only when every OTHER stop is already completed.
+    // (Don't infer "done" from the absence of a next stop — free-roam never has one.)
+    const prevMissions = activeTourProgress?.missions ?? {}
+    const isFinal = activeTour.missions.every(m =>
+      m.id === missionId ? true : prevMissions[m.id]?.status === 'completed'
+    )
+
     setAllProgress(prev => {
       const tourProg = prev[selectedTourId]
       const newMissions = { ...tourProg.missions }
@@ -191,8 +198,8 @@ export default function App() {
     })
     setLifetimePoints(prev => prev + earnedPoints)
 
-    setSuccessData({ mission, nextMission, score: earnedPoints })
-  }, [activeTour, selectedTourId, setAllProgress, setLifetimePoints])
+    setSuccessData({ mission, nextMission, score: earnedPoints, isFinal })
+  }, [activeTour, activeTourProgress, selectedTourId, setAllProgress, setLifetimePoints])
 
   const handleSuccessDismiss = useCallback(() => {
     const justCompletedId = successData?.mission?.id
@@ -377,6 +384,7 @@ export default function App() {
           <SuccessOverlay
             mission={successData.mission}
             nextMission={successData.nextMission}
+            isFinal={successData.isFinal}
             score={successData.score}
             totalScore={totalScore + successData.score}
             onDismiss={handleSuccessDismiss}

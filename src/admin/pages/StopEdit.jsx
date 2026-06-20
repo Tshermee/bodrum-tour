@@ -150,6 +150,14 @@ export default function StopEdit() {
           if (stop.lat && stop.lng) setLocInput(`${stop.lat}, ${stop.lng}`)
         }
       })
+    } else {
+      // New stop — default the order to the next free slot so stops never collide.
+      // order_index is the stop's identity in the app, so duplicates would make
+      // completing one stop look like completing several (esp. in free-roam tours).
+      adminFetchStops(tourId).then(stops => {
+        const maxOrder = stops.reduce((mx, s) => Math.max(mx, s.order_index || 0), 0)
+        setForm(prev => ({ ...prev, order_index: maxOrder + 1 }))
+      }).catch(() => {})
     }
   }, [id, tourId])
 

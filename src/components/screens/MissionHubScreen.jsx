@@ -50,7 +50,7 @@ function CompactMissionCard({ mission, progress, index, onOpen }) {
   )
 }
 
-function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, isTarget }) {
+function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, isTarget, hint }) {
   const { t } = useTranslation()
   const status = progress?.status ?? 'locked'
   const isLocked    = status === 'locked'
@@ -63,11 +63,10 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
 
   return (
     <button
-      onClick={() => !isLocked && onOpen(mission.id)}
-      disabled={isLocked}
+      onClick={() => onOpen(mission.id)}
       className={`
         w-full text-left rounded-2xl overflow-hidden transition-all duration-200
-        ${isLocked ? 'opacity-50 cursor-not-allowed' : 'active:scale-[0.98]'}
+        ${isLocked ? 'opacity-60' : 'active:scale-[0.98]'}
         ${isUnlocked && !isNearby ? 'glow-cyan' : ''}
       `}
       style={isSkipped ? { opacity: 0.65 } : isUnlocked && isNearby ? {
@@ -156,6 +155,15 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive, is
           )}
         </div>
       </div>
+
+      {/* Subtle reason it can't start yet (sequence-locked or too far) */}
+      {hint && (
+        <div className="flex items-center gap-1.5 px-4 py-2 animate-fade-in"
+          style={{ background: 'rgba(245,158,11,0.15)' }}>
+          <Lock className="w-3 h-3 text-amber-300/80 flex-shrink-0" />
+          <span className="text-amber-200/90 text-xs">{hint}</span>
+        </div>
+      )}
     </button>
   )
 }
@@ -164,7 +172,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   const { t, i18n } = useTranslation()
   const [showReset, setShowReset] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
-  const [toast, setToast] = useState(null)
+  const [blockedHint, setBlockedHint] = useState(null) // { id, message } — why a tapped stop can't start yet
   const [showRules, setShowRules] = useState(false)
   const [arrivedTarget, setArrivedTarget] = useState(false)
   const [rulesCfg, setRulesCfg] = useState(null)
@@ -244,31 +252,38 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
     })
   }, [targetDist])
 
-  // Auto-dismiss toast after 4 s
+  // Auto-dismiss the "why you can't start this yet" hint after 4 s
   useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 4000)
+    if (!blockedHint) return
+    const t = setTimeout(() => setBlockedHint(null), 4000)
     return () => clearTimeout(t)
-  }, [toast])
+  }, [blockedHint])
 
   function handleOpenMission(missionId) {
     const mission = missions.find(m => m.id === missionId)
     const status = tourProgress.missions[missionId]?.status
     // Completed/skipped stops open in read-only review mode (no GPS gate) so the
     // player can re-read the story, replay the audio, or download their photo.
-    if (status === 'completed') { onOpenMission(missionId); return }
-    if (status !== 'unlocked') return
+    if (status === 'completed') { setBlockedHint(null); onOpenMission(missionId); return }
 
-    // GPS gate — only active when we have a live position AND the stop has coordinates.
-    // Uses the same 300m reach radius as the challenge itself, so being at the stop
-    // (within GPS drift) always lets you open and do it.
+    // Sequence-locked (sequential tours only — free-roam never locks): tell the
+    // player which stop to finish first instead of doing nothing.
+    if (status !== 'unlocked') {
+      const n = currentStop ? missions.findIndex(m => m.id === currentStop.id) + 1 : null
+      setBlockedHint({ id: missionId, message: n ? t('hub_locked_sequence', { stop: n }) : t('hub_locked_generic') })
+      return
+    }
+
+    // Distance gate (both tour types): same 300m reach radius as the challenge,
+    // so GPS drift won't block you when you're actually there.
     if (gpsActive && mission.coordinates) {
       const dist = distances[missionId] ?? Infinity
       if (dist > REACH_RADIUS) {
-        setToast({ text: t('hub_toast_warn', { distance: formatDistance(dist) }), type: 'warn' })
+        setBlockedHint({ id: missionId, message: t('hub_toast_warn', { distance: formatDistance(dist) }) })
         return
       }
     }
+    setBlockedHint(null)
     onOpenMission(missionId)
   }
 
@@ -412,6 +427,15 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             </div>
           </button>
 
+          {/* Subtle reason it can't start yet (tapped while too far) */}
+          {blockedHint && blockedHint.id === currentStop.id && (
+            <div className="flex items-center gap-1.5 px-4 py-2 animate-fade-in"
+              style={{ background: 'rgba(245,158,11,0.12)', borderTop: '1px solid rgba(245,158,11,0.2)' }}>
+              <MapPin className="w-3 h-3 text-amber-300/80 flex-shrink-0" />
+              <span className="text-amber-200/90 text-xs">{blockedHint.message}</span>
+            </div>
+          )}
+
           {/* This stop's map */}
           <div className="relative">
             <MapView
@@ -487,18 +511,6 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
         </div>
       )}
 
-      {/* ── Toast notification ──────────────────────────────── */}
-      {toast && (
-        <div
-          className="mx-4 mt-2.5 px-4 py-2.5 rounded-xl text-sm font-medium text-center"
-          style={toast.type === 'arrive'
-            ? { background: 'rgba(34,197,94,0.18)', border: '1px solid rgba(34,197,94,0.35)', color: '#86efac' }
-            : { background: 'rgba(245,158,11,0.18)', border: '1px solid rgba(245,158,11,0.35)', color: '#fcd34d' }}
-        >
-          {toast.text}
-        </div>
-      )}
-
       {/* ── Coming up (stops after the current one) ──────────── */}
       <div className="flex-1 overflow-y-auto no-scrollbar px-4 py-4 pb-safe">
         {comingUp.length > 0 && (
@@ -517,6 +529,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                   distance={distances[mission.id]}
                   gpsActive={gpsActive}
                   isTarget={false}
+                  hint={blockedHint?.id === mission.id ? blockedHint.message : null}
                 />
               ))}
             </div>

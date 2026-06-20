@@ -77,6 +77,8 @@
   "hub_here": "Hier ✓",
   "hub_next": "Nächster",
   "hub_arrived_here": "Du bist hier angekommen — Challenge starten",
+  "hub_locked_sequence": "Schließe zuerst Stopp {{stop}} ab",
+  "hub_locked_generic": "Schließe zuerst die vorherigen Stopps ab",
   "hub_gps_active": "Live-Standort aktiv",
   "hub_gps_next_stop": "Nächster Stopp:",
   "hub_gps_inactive": "GPS aktivieren für Live-Tracking & Stopp-Freischaltung",

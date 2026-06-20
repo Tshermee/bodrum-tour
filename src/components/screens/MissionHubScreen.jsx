@@ -8,6 +8,7 @@ import {
 import MapView from '../ui/MapView'
 import { useGeolocation } from '../../hooks/useGeolocation'
 import { getDistanceMeters, formatDistance } from '../../lib/geo'
+import { fetchAppConfig } from '../../lib/api'
 
 const GPS_RADIUS = 50    // metres — "you're here" arrival radius (badge + toast)
 const REACH_RADIUS = 300 // metres — close enough to open & do a stop; matches MissionScreen's COMPLETE_RADIUS.
@@ -164,12 +165,13 @@ function MissionCard({ mission, progress, index, onOpen, distance, gpsActive }) 
 }
 
 export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenMission, onBackToSelect, onResetTour }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [showReset, setShowReset] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [toast, setToast] = useState(null)
   const [showRules, setShowRules] = useState(false)
   const [arrivedTarget, setArrivedTarget] = useState(false)
+  const [rulesCfg, setRulesCfg] = useState(null)
   const prevNearby = useRef(new Set())
 
   // Show rules the first time a user enters a new tour
@@ -179,6 +181,12 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
       setShowRules(true)
     }
   }, [tour.id])
+
+  // Admin-editable rules text (app_config key 'rules')
+  useEffect(() => {
+    fetchAppConfig('rules').then(setRulesCfg).catch(() => {})
+  }, [])
+  const rcfg = rulesCfg?.[(i18n.language || 'en').split('-')[0]] || rulesCfg?.en || {}
 
   const { position: userPos } = useGeolocation()
 
@@ -259,6 +267,9 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
   function handleOpenMission(missionId) {
     const mission = missions.find(m => m.id === missionId)
     const status = tourProgress.missions[missionId]?.status
+    // Completed/skipped stops open in read-only review mode (no GPS gate) so the
+    // player can re-read the story, replay the audio, or download their photo.
+    if (status === 'completed') { onOpenMission(missionId); return }
     if (status !== 'unlocked') return
 
     // GPS gate — only active when we have a live position AND the stop has coordinates.
@@ -659,7 +670,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 🗺️
               </div>
               <div>
-                <h3 className="text-white font-bold text-xl leading-tight">{t('hub_rules_heading')}</h3>
+                <h3 className="text-white font-bold text-xl leading-tight">{rcfg.heading || t('hub_rules_heading')}</h3>
                 <p className="text-white/40 text-sm">{tour.title}</p>
               </div>
             </div>
@@ -667,12 +678,14 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
             {/* Rules */}
             <div className="space-y-3 mb-6">
               {[
-                isFreeRoam
-                  ? { icon: '🗺️', title: t('hub_rules_free_roam'), body: t('hub_rules_free_roam_body') }
-                  : { icon: '📍', title: t('hub_rules_walk'), body: t('hub_rules_walk_body') },
-                { icon: '📸', title: t('hub_rules_challenge'), body: t('hub_rules_challenge_body') },
-                { icon: '💡', title: t('hub_rules_hints'), body: t('hub_rules_hints_body') },
-                { icon: '⏭️', title: t('hub_rules_skip'), body: t('hub_rules_skip_body') },
+                {
+                  icon: isFreeRoam ? '🗺️' : '📍',
+                  title: rcfg.rule1_title || (isFreeRoam ? t('hub_rules_free_roam') : t('hub_rules_walk')),
+                  body: rcfg.rule1_body || (isFreeRoam ? t('hub_rules_free_roam_body') : t('hub_rules_walk_body')),
+                },
+                { icon: '📸', title: rcfg.rule2_title || t('hub_rules_challenge'), body: rcfg.rule2_body || t('hub_rules_challenge_body') },
+                { icon: '💡', title: rcfg.rule3_title || t('hub_rules_hints'), body: rcfg.rule3_body || t('hub_rules_hints_body') },
+                { icon: '⏭️', title: rcfg.rule4_title || t('hub_rules_skip'), body: rcfg.rule4_body || t('hub_rules_skip_body') },
               ].map(r => (
                 <div key={r.icon} className="flex items-start gap-3">
                   <span className="text-lg flex-shrink-0 mt-0.5">{r.icon}</span>
@@ -693,7 +706,7 @@ export default function MissionHubScreen({ tour, tourProgress, teamName, onOpenM
                 boxShadow: `0 4px 20px ${tour.accentColor}33`,
               }}
             >
-              {t('hub_rules_start')}
+              {rcfg.start_label || t('hub_rules_start')}
             </button>
           </div>
         </div>,

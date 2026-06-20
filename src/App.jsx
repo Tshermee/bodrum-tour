@@ -9,6 +9,7 @@ import MissionHubScreen from './components/screens/MissionHubScreen'
 import MissionScreen from './components/screens/MissionScreen'
 import CompletionScreen from './components/screens/CompletionScreen'
 import SuccessOverlay from './components/ui/SuccessOverlay'
+import UpdateBanner from './components/ui/UpdateBanner'
 import { getDeviceId } from './lib/deviceId'
 
 function buildDefaultMissions(tour) {
@@ -325,6 +326,7 @@ export default function App() {
 
   return (
     <div className="relative flex justify-center min-h-screen bg-slate-950">
+      <UpdateBanner />
       <div className="relative w-full max-w-[430px] min-h-screen overflow-hidden bg-aegean-950">
 
         {screen === 'welcome' && (
@@ -375,6 +377,9 @@ export default function App() {
             tour={activeTour}
             tourProgress={activeTourProgress}
             teamName={teamName}
+            lifetimePoints={lifetimePoints}
+            redeemedRewards={redeemedRewards}
+            onRedeem={handleRedeem}
             onReset={handleResetActiveTour}
             onBackToSelect={handleBackToTourSelect}
           />

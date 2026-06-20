@@ -12,6 +12,8 @@ import Purchases from './pages/Purchases'
 import Analytics from './pages/Analytics'
 import SkipReports from './pages/SkipReports'
 import WelcomeConfig from './pages/WelcomeConfig'
+import RulesConfig from './pages/RulesConfig'
+import CompletionConfig from './pages/CompletionConfig'
 
 export default function AdminApp() {
   const [session, setSession] = useState(null)
@@ -63,6 +65,8 @@ export default function AdminApp() {
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/skip-reports" element={<SkipReports />} />
           <Route path="/welcome-config" element={<WelcomeConfig />} />
+          <Route path="/rules-config" element={<RulesConfig />} />
+          <Route path="/completion-config" element={<CompletionConfig />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AdminLayout>

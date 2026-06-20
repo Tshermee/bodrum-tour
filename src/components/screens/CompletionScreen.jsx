@@ -1,5 +1,8 @@
-import { Trophy, Star, Clock, RotateCcw, Share2, ArrowLeft } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Trophy, Star, Clock, RotateCcw, Gift, ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import RewardsModal from '../ui/RewardsModal'
+import { fetchAppConfig } from '../../lib/api'
 
 function formatDuration(startIso, endIso) {
   if (!startIso || !endIso) return '—'
@@ -19,25 +22,20 @@ function getRank(score, maxScore, t) {
   return { label: t('completion_rank_adventurer'), emoji: '⛵', color: '#a78bfa' }
 }
 
-export default function CompletionScreen({ tour, tourProgress, teamName, onReset, onBackToSelect }) {
-  const { t } = useTranslation()
+export default function CompletionScreen({ tour, tourProgress, teamName, lifetimePoints = 0, redeemedRewards = [], onRedeem, onReset, onBackToSelect }) {
+  const { t, i18n } = useTranslation()
+  const [showRewards, setShowRewards] = useState(false)
+  const [appCfg, setAppCfg] = useState(null)
+  const lang = (i18n.language || 'en').split('-')[0]
+
+  useEffect(() => {
+    fetchAppConfig('completion').then(setAppCfg).catch(() => {})
+  }, [])
+
+  const cfg = appCfg?.[lang] || appCfg?.en || {}
   const duration = formatDuration(tourProgress.startTime, tourProgress.completedAt)
   const rank = getRank(tourProgress.totalScore, tour.totalPossibleScore, t)
   const pct = Math.round((tourProgress.totalScore / tour.totalPossibleScore) * 100)
-
-  const handleShare = async () => {
-    const text = `🌊 I just completed "${tour.title}" in Bodrum!\n${rank.emoji} ${rank.label}\n⭐ ${tourProgress.totalScore}/${tour.totalPossibleScore} pts · ⏱️ ${duration}\n\n#Bodrum #Turkey`
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: tour.title, text })
-      } else {
-        await navigator.clipboard.writeText(text)
-        alert('Copied to clipboard!')
-      }
-    } catch {
-      // share cancelled or not supported
-    }
-  }
 
   return (
     <div className="relative min-h-screen flex flex-col overflow-hidden screen-enter-up">
@@ -105,14 +103,18 @@ export default function CompletionScreen({ tour, tourProgress, teamName, onReset
           >
             {rank.emoji} {rank.label}
           </div>
-          <h1 className="font-display text-white text-3xl font-black mb-1">{t('completion_heading')}</h1>
+          <h1 className="font-display text-white text-3xl font-black mb-1">{cfg.heading_main || t('completion_heading')}</h1>
           <h1 className="font-display text-3xl font-black italic" style={{ color: tour.accentColor }}>
-            {t('completion_heading_sub')}
+            {cfg.heading_sub || t('completion_heading_sub')}
           </h1>
-          <p className="text-white/50 text-sm mt-3">
-            <span className="text-white font-semibold">{teamName}</span> finished{' '}
-            <span className="text-white font-semibold">{tour.title}</span>
-          </p>
+          {cfg.message ? (
+            <p className="text-white/60 text-sm mt-3 leading-relaxed max-w-[320px] mx-auto whitespace-pre-line">{cfg.message}</p>
+          ) : (
+            <p className="text-white/50 text-sm mt-3">
+              <span className="text-white font-semibold">{teamName}</span> finished{' '}
+              <span className="text-white font-semibold">{tour.title}</span>
+            </p>
+          )}
         </div>
 
         {/* Score card */}
@@ -186,12 +188,12 @@ export default function CompletionScreen({ tour, tourProgress, teamName, onReset
         {/* Actions */}
         <div className="w-full flex gap-3 pb-safe">
           <button
-            onClick={handleShare}
+            onClick={() => setShowRewards(true)}
             className="flex-1 py-4 rounded-xl font-semibold text-white flex items-center justify-center gap-2 active:scale-95 transition-transform"
-            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}
+            style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24' }}
           >
-            <Share2 className="w-4 h-4" />
-            {t('completion_share')}
+            <Gift className="w-4 h-4" />
+            {t('completion_redeem')}
           </button>
           <button
             onClick={onBackToSelect}
@@ -206,6 +208,15 @@ export default function CompletionScreen({ tour, tourProgress, teamName, onReset
           </button>
         </div>
       </div>
+
+      {showRewards && (
+        <RewardsModal
+          balance={lifetimePoints}
+          redeemedRewards={redeemedRewards}
+          onRedeem={(reward) => onRedeem?.(reward)}
+          onClose={() => setShowRewards(false)}
+        />
+      )}
     </div>
   )
 }
